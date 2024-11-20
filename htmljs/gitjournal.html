@@ -165,29 +165,25 @@
                   message[1].matchAll(regex),
                   (match) => match[1]
                 );
-
                 
-                duration = parseInt(meta[1]);
-                if (meta && meta.length == 2) {
+                if (meta && meta.length >= 2) { // valid journal data
                   // Analyse duration
                   durationParts = meta[0].match(/\d+/g).map(Number) // extract all numbers, no matter what the separator : 1h20, 15, 20min, 2:10, ...
                   duration = 0
                   durationParts.forEach(p => duration = duration * 60 + p)
-                  // valid journal data
+                  
                   totalDurationInMinutes += duration;
 
-                  // Générer l'URL du commit
-                  const commitUrl = commit.html_url; // URL du commit sur GitHub
-
+                  // Add row to table
                   const row = `
-                        <tr onclick="window.open('${commitUrl}', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
+                        <tr onclick="window.open('${commit.html_url}', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
                           <td>${message[0]}</td>
                           <td>${
                             descriptionTail || ""
                           }</td> <!-- Si pas de description, la cellule reste vide -->
                           <td>${toHours(duration)}</td>
                           <td>${meta[1]}</td>
-                          </tr>`;
+                        </tr>`;
                   table.innerHTML += row;
                 } else {
                   errors.push(
@@ -202,9 +198,6 @@
                 );
               }
             });
-
-            // Convertir la durée totale en heures
-            const totalDurationInHours = Math.floor(totalDurationInMinutes / 60) + "h" + (totalDurationInMinutes % 60).toString().padStart(2,'0')
 
             // Ajouter la ligne de total à la table
             const totalRow = `
