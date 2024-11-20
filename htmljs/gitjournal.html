@@ -143,12 +143,12 @@
 
             const table = document.createElement("table");
             const headerRow = `
-                        <tr>
-                            <th>Tâche</th>
-                            <th>Description</th>
-                            <th>Durée (min)</th>
-                            <th>Status</th>
-                        </tr>`;
+                  <tr>
+                    <th>Tâche</th>
+                    <th>Description</th>
+                    <th>Durée (min)</th>
+                    <th>Status</th>
+                    </tr>`;
             table.innerHTML = headerRow;
 
             commitsByDate[date].forEach((commit) => {
@@ -159,49 +159,61 @@
               let descriptionTail = message.slice(2).join("<br>"); // Le reste comme description
               if (message.length > 1) {
                 // can be a valid journal entry
-                // Extraction des métadonnées
-                const regex = /\[(\d+[a-zA-Z]*)\][^\[]*\[([^\]]+)\]/g;
-                // Extract metadata from the second line of the message (the first of the description)
-                const meta = regex.exec(message[1]);
-                if (meta && meta.length == 3 && !isNaN(meta[1])) {
+                // Extraction des champs de métadonnées
+                const regex = /\[(.*?)\]/g;
+                const meta = Array.from(
+                  message[1].matchAll(regex),
+                  (match) => match[1]
+                );
+
+                
+                duration = parseInt(meta[1]);
+                if (meta && meta.length == 2) {
+                  // Analyse duration
+                  durationParts = meta[0].match(/\d+/g).map(Number) // extract all numbers, no matter what the separator : 1h20, 15, 20min, 2:10, ...
+                  duration = 0
+                  durationParts.forEach(p => duration = duration * 60 + p)
                   // valid journal data
-                  duration = parseInt(meta[1], 10);
                   totalDurationInMinutes += duration;
 
                   // Générer l'URL du commit
                   const commitUrl = commit.html_url; // URL du commit sur GitHub
 
                   const row = `
-                  <tr onclick="window.open('${commitUrl}', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
-                    <td>${message[0]}</td>
-                    <td>${
-                      descriptionTail || ""
-                    }</td> <!-- Si pas de description, la cellule reste vide -->
-                    <td>${duration}</td>
-                    <td>${meta[2]}</td>
-                    </tr>`;
+                        <tr onclick="window.open('${commitUrl}', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
+                          <td>${message[0]}</td>
+                          <td>${
+                            descriptionTail || ""
+                          }</td> <!-- Si pas de description, la cellule reste vide -->
+                          <td>${toHours(duration)}</td>
+                          <td>${meta[1]}</td>
+                          </tr>`;
                   table.innerHTML += row;
                 } else {
-                  errors.push(message[0]);
+                  errors.push(
+                    message[0] +
+                      ` <a href=${commit.html_url} target="blank">voir</a>`
+                  );
                 }
               } else {
-                errors.push(message[0]);
+                errors.push(
+                  message[0] +
+                    ` <a href=${commit.html_url} target="blank">voir</a>`
+                );
               }
             });
 
             // Convertir la durée totale en heures
-            const totalDurationInHours = (totalDurationInMinutes / 60).toFixed(
-              2
-            );
+            const totalDurationInHours = Math.floor(totalDurationInMinutes / 60) + "h" + (totalDurationInMinutes % 60).toString().padStart(2,'0')
 
             // Ajouter la ligne de total à la table
             const totalRow = `
-                        <tr>
-                            <td></td>
-                            <td style="text-align: right; font-weight: bold;">Total :</td>
-                            <td style="font-weight: bold;">${totalDurationInHours} h</td>
-                            <td></td>
-                        </tr>`;
+                              <tr>
+                                  <td></td>
+                                  <td style="text-align: right; font-weight: bold;">Total :</td>
+                                  <td style="font-weight: bold;">${toHours(totalDurationInMinutes)}</td>
+                                  <td></td>
+                              </tr>`;
             table.innerHTML += totalRow;
 
             // Ajouter un en-tête pour la date et le tableau
@@ -216,26 +228,16 @@
             errorsDiv.innerHTML =
               "<h4>Les commits suivants ont été ignorés, probalement parce qu'ils ne respectent pas la convention</h4>";
             errorsDiv.innerHTML += errors.join("<br>");
-            errorsDiv.innerHTML += `
-              <br>
-              <br>
-              <div>
-                <small style="color: gray;"><small>
-                  <p>Procedure exceptionelle pour corriger les commits existants</p>
-                  <ol>
-                    <li>git rebase -i HEAD~n</li>
-                    <li>Changer "pick" en "reword" pour les commits visés</li>
-                    <li>Quitter l'éditeur, suivre les instructions
-                    <li>git push origin branch-name --force</li>
-                  </ol>
-                </small></small>
-              </div>
-            `;
             errorsDiv.style.display = "block";
           }
         } catch (error) {
           logsDiv.innerHTML = `<p style="color: red;">Erreur : ${error.message}</p>`;
         }
+      }
+
+      function toHours(minutes)
+      {
+        return Math.floor(minutes / 60) + "h" + (minutes % 60).toString().padStart(2,'0')+"m"
       }
     </script>
   </body>
