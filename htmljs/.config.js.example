@@ -1,0 +1,2 @@
+const defaultRepoUrl = "https://github.com/user/repo";
+const defaultAuthToken = "ghp_o0i..."; // Make sure the token has full private repo privileges

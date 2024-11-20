@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title id="page-title">Journal de travail par GitHub</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      input,
+      button {
+        margin: 5px 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f4f4f4;
+      }
+      .date-header {
+        font-weight: bold;
+        font-size: 1.2em;
+        margin-top: 20px;
+      }
+      .d-none {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="project-title">Journal de travail extrait de commits GitHub</h1>
+    <div id="inputZone">
+      <p>URL du repository GitHub :</p>
+      <input type="text" id="repoUrl" placeholder="https://github.com/utilisateur/repository" style="width: 300px" />
+      <p>Jeton d'accès personnel GitHub (PAT) :</p>
+      <input type="password" id="authToken" placeholder="ghp_ob4ievF..." style="width: 300px" />
+      <br>
+      <button onclick="fetchGitLogs()">Ok</button>
+    </div>
+    <div id="logs"></div>
+
+    <script src=".config.js"></script>
+    <script>
+      document.getElementById("repoUrl").value = defaultRepoUrl;
+      document.getElementById("authToken").value = defaultAuthToken;
+
+      async function fetchGitLogs() {
+        const repoUrl = document.getElementById("repoUrl").value || defaultRepoUrl;
+        const authToken = document.getElementById("authToken").value || defaultAuthToken;
+        const logsDiv = document.getElementById("logs");
+        logsDiv.innerHTML = ""; // Effacer les anciens logs
+
+        // Extraire l'utilisateur et le nom du repository depuis l'URL
+        const repoMatch = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+        if (!repoMatch) {
+          logsDiv.innerHTML = '<p style="color: red;">URL du repository GitHub invalide.</p>';
+          return;
+        }
+        const [_, owner, repo] = repoMatch;
+
+        try {
+          const branch = "main"; // Utiliser 'main' ou 'develop' en fonction de votre branche
+          const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}`;
+
+          // Mise à jour des titres
+          document.getElementById("page-title").innerText = `Journal de ${owner} pour ${repo}`;
+          document.getElementById("project-title").innerText = `Journal de ${owner} pour ${repo}`;
+
+          // Récupérer les commits depuis l'API GitHub
+          const response = await fetch(apiUrl, {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              Accept: "application/vnd.github.v3+json"
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`Échec de la récupération : ${response.status} ${response.statusText}`);
+          }
+
+          const commits = await response.json();
+          if (commits.length === 0) {
+            logsDiv.innerHTML = "<p>Aucun commit trouvé pour la branche spécifiée.</p>";
+            return;
+          }
+
+          document.getElementById("inputZone").classList.add("d-none");
+
+          // Regrouper les commits par date
+          const commitsByDate = {};
+          commits.forEach((commit) => {
+            const date = new Date(commit.commit.author.date).toLocaleDateString("fr-FR", {
+              year: "numeric",
+              month: "long",
+              day: "numeric"
+            });
+            if (!commitsByDate[date]) {
+              commitsByDate[date] = [];
+            }
+            commitsByDate[date].push(commit);
+          });
+
+          // Créer le tableau pour chaque jour
+          for (const date in commitsByDate) {
+            let totalDurationInMinutes = 0;
+
+            const table = document.createElement("table");
+            const headerRow = `
+                        <tr>
+                            <th>Résumé</th>
+                            <th>Description</th>
+                            <th>Durée (min)</th>
+                            <th>Status</th>
+                        </tr>`;
+            table.innerHTML = headerRow;
+
+            commitsByDate[date].forEach((commit) => {
+              const message = commit.commit.message.split("\n").filter(line => line.trim() !== "");
+              let descriptionTail = message.slice(2).join("<br>"); // Le reste comme description
+
+              if (message.length > 1){ // can be a valid journal entry
+                // Extraction des métadonnées
+                const regex = /\[(\d+[a-zA-Z]*)\][^\[]*\[([^\]]+)\]/g;
+                // Extract metadata from the second line of the message (the first of the description)
+                const meta = regex.exec(message[1])
+                duration = meta[1] ? parseInt(meta[1], 10) : null;
+                totalDurationInMinutes += duration ? duration : 0;
+                
+                // Générer l'URL du commit
+                const commitUrl = commit.html_url; // URL du commit sur GitHub
+                
+                const row = `
+                <tr onclick="window.open('${commitUrl}', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
+                  <td>${message[0]}</td>
+                  <td>${descriptionTail || ""}</td> <!-- Si pas de description, la cellule reste vide -->
+                  <td>${duration || "???"}</td>
+                  <td>${meta[2] ? meta[2] : "???"}</td>
+                  </tr>`;
+                  table.innerHTML += row;
+                }
+            });
+
+            // Convertir la durée totale en heures
+            const totalDurationInHours = (totalDurationInMinutes / 60).toFixed(2);
+
+            // Ajouter la ligne de total à la table
+            const totalRow = `
+                        <tr>
+                            <td></td>
+                            <td style="text-align: right; font-weight: bold;">Total :</td>
+                            <td style="font-weight: bold;">${totalDurationInHours} h</td>
+                            <td></td>
+                        </tr>`;
+            table.innerHTML += totalRow;
+
+            // Ajouter un en-tête pour la date et le tableau
+            const dateHeader = document.createElement("div");
+            dateHeader.className = "date-header";
+            dateHeader.textContent = `${date}`;
+            logsDiv.appendChild(dateHeader);
+            logsDiv.appendChild(table);
+          }
+        } catch (error) {
+          logsDiv.innerHTML = `<p style="color: red;">Erreur : ${error.message}</p>`;
+        }
+      }
+    </script>
+  </body>
+</html>
