@@ -45,92 +45,97 @@
       <p style="display: none">Jeton d'accès personnel GitHub (PAT) :</p>
       <input style="display: none" type="password" id="authToken" placeholder="ghp_ob4ievF..." style="width: 300px" />
       <br />
+      <select id="dpdProjects"></select
+      ><br />
       <button onclick="fetchGitLogs()">Ok</button>
     </div>
     <div id="logs"></div>
     <div id="errors" style="display: none"></div>
+  </body>
+</html>
 
-    <script src=".config.js"></script>
-    <script>
-      document.getElementById("repoUrl").value = defaultRepoUrl;
-      document.getElementById("authToken").value = defaultAuthToken;
+<script src=".config.js"></script>
+<script>
+  document.getElementById("repoUrl").value = defaultRepoUrl;
+  document.getElementById("authToken").value = defaultAuthToken;
 
-      async function fetchGitLogs() {
-        const repoUrl = document.getElementById("repoUrl").value || defaultRepoUrl;
-        const authToken = document.getElementById("authToken").value || defaultAuthToken;
-        const logsDiv = document.getElementById("logs");
-        const errorsDiv = document.getElementById("errors");
-        logsDiv.innerHTML = ""; // Effacer les anciens logs
+  initDropdown();
+  async function fetchGitLogs() {
+    const repoUrl = document.getElementById("repoUrl").value || defaultRepoUrl;
+    const authToken = document.getElementById("authToken").value || defaultAuthToken;
+    const logsDiv = document.getElementById("logs");
+    const errorsDiv = document.getElementById("errors");
+    logsDiv.innerHTML = ""; // Effacer les anciens logs
 
-        // Extraire l'utilisateur et le nom du repository depuis l'URL
-        const repoMatch = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
-        if (!repoMatch) {
-          logsDiv.innerHTML = '<p style="color: red;">URL du repository GitHub invalide.</p>';
-          return;
+    // Extraire l'utilisateur et le nom du repository depuis l'URL
+    const repoMatch = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (!repoMatch) {
+      logsDiv.innerHTML = '<p style="color: red;">URL du repository GitHub invalide.</p>';
+      return;
+    }
+    const [_, owner, repo] = repoMatch;
+
+    try {
+      const branch = "main"; // Utiliser 'main' ou 'develop' en fonction de votre branche
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}`;
+
+      // Mise à jour des titres
+      document.getElementById("page-title").innerText = `Journal de ${owner} pour ${repo}`;
+      document.getElementById("project-title").innerText = `Journal de ${owner} pour ${repo}`;
+
+      // Récupérer les commits depuis l'API GitHub
+      const response = await fetch(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          Accept: "application/vnd.github.v3+json"
         }
-        const [_, owner, repo] = repoMatch;
+      });
 
-        try {
-          const branch = "main"; // Utiliser 'main' ou 'develop' en fonction de votre branche
-          const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}`;
+      if (!response.ok) {
+        throw new Error(`Échec de la récupération : ${response.status} ${response.statusText}`);
+      }
 
-          // Mise à jour des titres
-          document.getElementById("page-title").innerText = `Journal de ${owner} pour ${repo}`;
-          document.getElementById("project-title").innerText = `Journal de ${owner} pour ${repo}`;
+      const commits = await response.json();
+      if (commits.length === 0) {
+        logsDiv.innerHTML = "<p>Aucun commit trouvé pour la branche spécifiée.</p>";
+        return;
+      }
 
-          // Récupérer les commits depuis l'API GitHub
-          const response = await fetch(apiUrl, {
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-              Accept: "application/vnd.github.v3+json"
-            }
-          });
+      document.getElementById("inputZone").classList.add("d-none");
+      const errors = []; // Commits that don't comply
 
-          if (!response.ok) {
-            throw new Error(`Échec de la récupération : ${response.status} ${response.statusText}`);
+      // Regrouper les commits par date
+      const commitsByDate = {};
+      commits.forEach((commit) => {
+        const groomed = groom(commit);
+        if (typeof commit.date != "undefined") {
+          if (!commitsByDate[commit.date]) {
+            commitsByDate[commit.date] = [];
           }
+          commitsByDate[commit.date].push(commit);
+        }
+      });
 
-          const commits = await response.json();
-          if (commits.length === 0) {
-            logsDiv.innerHTML = "<p>Aucun commit trouvé pour la branche spécifiée.</p>";
-            return;
-          }
+      // Créer le tableau pour chaque jour
+      for (const date in commitsByDate) {
+        let totalDurationInMinutes = 0;
 
-          document.getElementById("inputZone").classList.add("d-none");
-          const errors = []; // Commits that don't comply
-
-          // Regrouper les commits par date
-          const commitsByDate = {};
-          commits.forEach((commit) => {
-            const groomed = groom(commit);
-            if (typeof commit.date != "undefined") {
-              if (!commitsByDate[commit.date]) {
-                commitsByDate[commit.date] = [];
-              }
-              commitsByDate[commit.date].push(commit);
-            }
-          });
-
-          // Créer le tableau pour chaque jour
-          for (const date in commitsByDate) {
-            let totalDurationInMinutes = 0;
-
-            const table = document.createElement("table");
-            const headerRow = `
+        const table = document.createElement("table");
+        const headerRow = `
                   <tr>
                     <th>Tâche</th>
                     <th>Description</th>
                     <th>Durée (min)</th>
                     <th>Status</th>
                     </tr>`;
-            table.innerHTML = headerRow;
+        table.innerHTML = headerRow;
 
-            commitsByDate[date].forEach((commit) => {
-              if (commitIsOKForJournal(commit)) {
-                totalDurationInMinutes += commit.duration;
+        commitsByDate[date].forEach((commit) => {
+          if (commitIsOKForJournal(commit)) {
+            totalDurationInMinutes += commit.duration;
 
-                // Add row to table
-                const row = `
+            // Add row to table
+            const row = `
                   <tr onclick="window.open('${
                     commit.html_url
                   }', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
@@ -139,88 +144,96 @@
                     <td>${toHours(commit.duration)}</td>
                     <td>${commit.status}</td>
                   </tr>`;
-                table.innerHTML += row;
-              } else {
-                errors.push(`<a href=${commit.html_url} target="blank">${commit.name}</a>`);
-              }
-            });
+            table.innerHTML += row;
+          } else {
+            errors.push(`<a href=${commit.html_url} target="blank">${commit.name}</a>`);
+          }
+        });
 
-            // Ajouter la ligne de total à la table
-            const totalRow = `
+        // Ajouter la ligne de total à la table
+        const totalRow = `
               <tr>
                   <td></td>
                   <td style="text-align: right; font-weight: bold;">Total :</td>
                   <td style="font-weight: bold;">${toHours(totalDurationInMinutes)}</td>
                   <td></td>
               </tr>`;
-            table.innerHTML += totalRow;
-            // Ajouter un en-tête pour la date et le tableau
-            const dateHeader = document.createElement("div");
-            dateHeader.className = "date-header";
-            dateHeader.textContent = `${date}`;
-            logsDiv.appendChild(dateHeader);
-            logsDiv.appendChild(table);
-          }
-          // Show errors
-          if (errors.length > 0) {
-            errorsDiv.innerHTML =
-              "<h4>Les commits suivants ont été ignorés, probalement parce qu'ils ne respectent pas la convention</h4>";
-            errorsDiv.innerHTML += errors.join("<br>");
-            errorsDiv.style.display = "block";
-          }
-        } catch (error) {
-          logsDiv.innerHTML = `<p style="color: red;">Erreur : ${error.message}</p>`;
-        }
+        table.innerHTML += totalRow;
+        // Ajouter un en-tête pour la date et le tableau
+        const dateHeader = document.createElement("div");
+        dateHeader.className = "date-header";
+        dateHeader.textContent = `${date}`;
+        logsDiv.appendChild(dateHeader);
+        logsDiv.appendChild(table);
       }
+      // Show errors
+      if (errors.length > 0) {
+        errorsDiv.innerHTML =
+          "<h4>Les commits suivants ont été ignorés, probalement parce qu'ils ne respectent pas la convention</h4>";
+        errorsDiv.innerHTML += errors.join("<br>");
+        errorsDiv.style.display = "block";
+      }
+    } catch (error) {
+      logsDiv.innerHTML = `<p style="color: red;">Erreur : ${error.message}</p>`;
+    }
+  }
 
-      /// Extracts information from the commit description and make them available as fields of the commit object
-      function groom(commit) {
-        const messageBreakdown = commit.commit.message.split("\n").filter((line) => line.trim() !== "");
-        commit.name = messageBreakdown[0];
-        commit.description = messageBreakdown.slice(2).join("<br>"); // Le reste comme description
-        if (messageBreakdown.length > 1) {
-          // can be a valid journal entry
-          // Extraction des champs de métadonnées
-          commit.date = new Date(commit.commit.author.date).toLocaleDateString("fr-FR", {
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-          });
-          const regex = /\[(.*?)\]/g;
-          const meta = Array.from(messageBreakdown[1].matchAll(regex), (match) => match[1]);
-          // Handle duration
-          if (meta && meta.length >= 2) {
-            // valid journal data
-            // Analyse duration
-            // trickytricky... a field without numbers is status, with 1 or 2 numbers it's a duration, with 3 it's a date correction
-            meta.forEach((m) => {
-              debugger;
-              let numericparts = m.match(/\d+/g);
-              if (numericparts == null) {
-                commit.status = m;
-              } else if (numericparts.length < 3) {
-                duration = 0;
-                numericparts.forEach((p) => (duration = duration * 60 + parseInt(p)));
-                commit.duration = duration;
-              } else if (numericparts.length == 3) {
-                commit.date = new Date(numericparts[0], numericparts[1], numericparts[2]);
-              }
-            });
+  /// Extracts information from the commit description and make them available as fields of the commit object
+  function groom(commit) {
+    const messageBreakdown = commit.commit.message.split("\n").filter((line) => line.trim() !== "");
+    commit.name = messageBreakdown[0];
+    commit.description = messageBreakdown.slice(2).join("<br>"); // Le reste comme description
+    if (messageBreakdown.length > 1) {
+      // can be a valid journal entry
+      // Extraction des champs de métadonnées
+      commit.date = new Date(commit.commit.author.date).toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+      const regex = /\[(.*?)\]/g;
+      const meta = Array.from(messageBreakdown[1].matchAll(regex), (match) => match[1]);
+      // Handle duration
+      if (meta && meta.length >= 2) {
+        // valid journal data
+        // Analyse duration
+        // trickytricky... a field without numbers is status, with 1 or 2 numbers it's a duration, with 3 it's a date correction
+        meta.forEach((m) => {
+          let numericparts = m.match(/\d+/g);
+          if (numericparts == null) {
+            commit.status = m;
+          } else if (numericparts.length < 3) {
+            duration = 0;
+            numericparts.forEach((p) => (duration = duration * 60 + parseInt(p)));
+            commit.duration = duration;
+          } else if (numericparts.length == 3) {
+            commit.date = new Date(numericparts[0], numericparts[1], numericparts[2]);
           }
-        }
-        return commit;
+        });
       }
+    }
+    return commit;
+  }
 
-      function commitIsOKForJournal(commit) {
-        if (typeof commit.date == "undefined") return false;
-        if (commit.date == "undefined") return false;
-        if (typeof commit.status == "undefined") return false;
-        return true;
-      }
+  function commitIsOKForJournal(commit) {
+    if (typeof commit.date == "undefined") return false;
+    if (commit.date == "undefined") return false;
+    if (typeof commit.status == "undefined") return false;
+    return true;
+  }
 
-      function toHours(minutes) {
-        return Math.floor(minutes / 60) + "h" + (minutes % 60).toString().padStart(2, "0") + "m";
-      }
-    </script>
-  </body>
-</html>
+  function initDropdown() {
+    if (typeof repos != "undefined") {
+      dpdProjects.innerHTML =
+        `<option>--- Choisir ---</option>` + repos.map((r) => `<option value=${r.url}>${r.name}</option>`);
+    }
+  }
+  dpdProjects.addEventListener("change", () => {
+    repoUrl.value = dpdProjects.value;
+    fetchGitLogs();
+  });
+
+  function toHours(minutes) {
+    return Math.floor(minutes / 60) + "h" + (minutes % 60).toString().padStart(2, "0") + "m";
+  }
+</script>

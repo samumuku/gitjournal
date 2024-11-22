@@ -1,2 +1,7 @@
+const repos = [
+  { name: "Joe", url: "https://github.com/joe/repo" },
+  { name: "Jack", url: "https://github.com/jack/repo" },
+  { name: "William", url: "https://github.com/bill/repo" }
+];
 const defaultRepoUrl = "https://github.com/user/repo";
 const defaultAuthToken = "ghp_o0i..."; // Make sure the token has full private repo privileges
