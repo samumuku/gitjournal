@@ -42,8 +42,8 @@
     <div id="inputZone">
       <p>URL du repository GitHub :</p>
       <input type="text" id="repoUrl" placeholder="https://github.com/utilisateur/repository" style="width: 300px" />
-      <p>Jeton d'accès personnel GitHub (PAT) :</p>
-      <input type="password" id="authToken" placeholder="ghp_ob4ievF..." style="width: 300px" />
+      <p style="display: none">Jeton d'accès personnel GitHub (PAT) :</p>
+      <input style="display: none" type="password" id="authToken" placeholder="ghp_ob4ievF..." style="width: 300px" />
       <br />
       <button onclick="fetchGitLogs()">Ok</button>
     </div>
@@ -126,52 +126,34 @@
             table.innerHTML = headerRow;
 
             commitsByDate[date].forEach((commit) => {
-              const message = commit.commit.message.split("\n").filter((line) => line.trim() !== "");
-              let descriptionTail = message.slice(2).join("<br>"); // Le reste comme description
-              if (message.length > 1) {
-                // can be a valid journal entry
-                // Extraction des champs de métadonnées
-                const regex = /\[(.*?)\]/g;
-                const meta = Array.from(message[1].matchAll(regex), (match) => match[1]);
+              if (commitIsOKForJournal(commit)) {
+                totalDurationInMinutes += commit.duration;
 
-                if (meta && meta.length >= 2) {
-                  // valid journal data
-                  // Analyse duration
-                  durationParts = meta[0].match(/\d+/g).map(Number); // extract all numbers, no matter what the separator : 1h20, 15, 20min, 2:10, ...
-                  duration = 0;
-                  durationParts.forEach((p) => (duration = duration * 60 + p));
-
-                  totalDurationInMinutes += duration;
-
-                  // Add row to table
-                  const row = `
-                        <tr onclick="window.open('${
-                          commit.html_url
-                        }', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
-                          <td>${message[0]}</td>
-                          <td>${descriptionTail || ""}</td> <!-- Si pas de description, la cellule reste vide -->
-                          <td>${toHours(duration)}</td>
-                          <td>${meta[1]}</td>
-                        </tr>`;
-                  table.innerHTML += row;
-                } else {
-                  errors.push(`<a href=${commit.html_url} target="blank">${message[0]}</a>`);
-                }
+                // Add row to table
+                const row = `
+                  <tr onclick="window.open('${
+                    commit.html_url
+                  }', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
+                    <td>${commit.name}</td>
+                    <td>${commit.description}</td> <!-- Si pas de description, la cellule reste vide -->
+                    <td>${toHours(commit.duration)}</td>
+                    <td>${commit.status}</td>
+                  </tr>`;
+                table.innerHTML += row;
               } else {
-                errors.push(`<a href=${commit.html_url} target="blank">${message[0]}</a>`);
+                errors.push(`<a href=${commit.html_url} target="blank">${commit.name}</a>`);
               }
             });
 
             // Ajouter la ligne de total à la table
             const totalRow = `
-                              <tr>
-                                  <td></td>
-                                  <td style="text-align: right; font-weight: bold;">Total :</td>
-                                  <td style="font-weight: bold;">${toHours(totalDurationInMinutes)}</td>
-                                  <td></td>
-                              </tr>`;
+              <tr>
+                  <td></td>
+                  <td style="text-align: right; font-weight: bold;">Total :</td>
+                  <td style="font-weight: bold;">${toHours(totalDurationInMinutes)}</td>
+                  <td></td>
+              </tr>`;
             table.innerHTML += totalRow;
-
             // Ajouter un en-tête pour la date et le tableau
             const dateHeader = document.createElement("div");
             dateHeader.className = "date-header";
@@ -194,34 +176,46 @@
       /// Extracts information from the commit description and make them available as fields of the commit object
       function groom(commit) {
         const messageBreakdown = commit.commit.message.split("\n").filter((line) => line.trim() !== "");
+        commit.name = messageBreakdown[0];
         commit.description = messageBreakdown.slice(2).join("<br>"); // Le reste comme description
         if (messageBreakdown.length > 1) {
           // can be a valid journal entry
           // Extraction des champs de métadonnées
-          const regex = /\[(.*?)\]/g;
-          const meta = Array.from(messageBreakdown[1].matchAll(regex), (match) => match[1]);
-
-          // Handle duration
-          if (meta && meta.length >= 2) {
-            // valid journal data
-            // Analyse duration
-            durationParts = meta[0].match(/\d+/g).map(Number); // extract all numbers, no matter what the separator : 1h20, 15, 20min, 2:10, ...
-            duration = 0;
-            durationParts.forEach((p) => (duration = duration * 60 + p));
-            commit.duration = duration;
-          }
-
-          // Handle status
-          commit.status = meta[1] ? meta[1] : null;
-
-          // Handle date: either from commit or correction field of the description
-          commit.date = new Date(meta[2] ? meta[2] : commit.commit.author.date).toLocaleDateString("fr-FR", {
+          commit.date = new Date(commit.commit.author.date).toLocaleDateString("fr-FR", {
             year: "numeric",
             month: "long",
             day: "numeric"
           });
+          const regex = /\[(.*?)\]/g;
+          const meta = Array.from(messageBreakdown[1].matchAll(regex), (match) => match[1]);
+          // Handle duration
+          if (meta && meta.length >= 2) {
+            // valid journal data
+            // Analyse duration
+            // trickytricky... a field without numbers is status, with 1 or 2 numbers it's a duration, with 3 it's a date correction
+            meta.forEach((m) => {
+              debugger;
+              let numericparts = m.match(/\d+/g);
+              if (numericparts == null) {
+                commit.status = m;
+              } else if (numericparts.length < 3) {
+                duration = 0;
+                numericparts.forEach((p) => (duration = duration * 60 + parseInt(p)));
+                commit.duration = duration;
+              } else if (numericparts.length == 3) {
+                commit.date = new Date(numericparts[0], numericparts[1], numericparts[2]);
+              }
+            });
+          }
         }
         return commit;
+      }
+
+      function commitIsOKForJournal(commit) {
+        if (typeof commit.date == "undefined") return false;
+        if (commit.date == "undefined") return false;
+        if (typeof commit.status == "undefined") return false;
+        return true;
       }
 
       function toHours(minutes) {
