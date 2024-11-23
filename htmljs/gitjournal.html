@@ -53,23 +53,31 @@
         float: right;
         cursor: pointer;
       }
+      @media print {
+        .no-print,
+        .no-print * {
+          display: none !important;
+        }
+      }
     </style>
   </head>
   <body>
-    <div id="divHelpButton" onclick="toggleHelp()">?</div>
+    <div id="divHelpButton" class="no-print" onclick="toggleHelp()">?</div>
     <h1 id="project-title">Journal de travail extrait de commits GitHub</h1>
     <div id="inputZone">
-      <p>URL du repository GitHub :</p>
-      <input type="text" id="repoUrl" placeholder="https://github.com/utilisateur/repository" style="width: 300px" />
-      <p style="display: none">Jeton d'accès personnel GitHub (PAT) :</p>
-      <input style="display: none" type="password" id="authToken" placeholder="ghp_ob4ievF..." style="width: 300px" />
+      <span style="width: 80px">URL du repo :</span>
+      <input type="text" id="repoUrl" placeholder="https://github.com/utilisateur/repository" style="width: 500px" />
+      ou
+      <select id="dpdProjects"></select>
       <br />
-      <select id="dpdProjects"></select
-      ><br />
+      <br />
+      <span style="width: 80px">Branche :</span>
+      <input type="text" id="branch" value="main" style="width: 500px" />
+      <br />
       <button onclick="fetchGitLogs()">Ok</button>
     </div>
     <div id="logs"></div>
-    <div id="errors" style="display: none"></div>
+    <div id="errors" class="no-print" style="display: none"></div>
     <div id="divHelp" style="display: none">
       <h3>Git journal</h3>
       <p>Cet outil vous permet de générer un journal de travail basé sur le log d'un repo Git</p>
@@ -145,13 +153,12 @@
 <script>
   /// Initialize inputs with defaults from config file
   document.getElementById("repoUrl").value = defaultRepoUrl;
-  document.getElementById("authToken").value = defaultAuthToken;
 
   initDropdown();
 
   async function fetchGitLogs() {
     const repoUrl = document.getElementById("repoUrl").value || defaultRepoUrl;
-    const authToken = document.getElementById("authToken").value || defaultAuthToken;
+    const authToken = defaultAuthToken;
     const logsDiv = document.getElementById("logs");
     const errorsDiv = document.getElementById("errors");
     logsDiv.innerHTML = ""; // Effacer les anciens logs
@@ -165,7 +172,7 @@
     const [_, owner, repo] = repoMatch;
 
     try {
-      const branch = "main"; // Utiliser 'main' ou 'develop' en fonction de votre branche
+      const branch = document.getElementById("branch").value || "main";
       const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}`;
 
       // Mise à jour des titres
@@ -327,7 +334,6 @@
     // Launch action on change
     dpdProjects.addEventListener("change", () => {
       repoUrl.value = dpdProjects.value;
-      fetchGitLogs();
     });
   }
 
