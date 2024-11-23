@@ -56,10 +56,12 @@
 
 <script src=".config.js"></script>
 <script>
+  /// Initialize inputs with defaults from config file
   document.getElementById("repoUrl").value = defaultRepoUrl;
   document.getElementById("authToken").value = defaultAuthToken;
 
   initDropdown();
+
   async function fetchGitLogs() {
     const repoUrl = document.getElementById("repoUrl").value || defaultRepoUrl;
     const authToken = document.getElementById("authToken").value || defaultAuthToken;
@@ -215,6 +217,7 @@
     return commit;
   }
 
+  /// Decide if the metadata is enough to generate a log entry
   function commitIsOKForJournal(commit) {
     if (typeof commit.date == "undefined") return false;
     if (commit.date == "undefined") return false;
@@ -222,17 +225,21 @@
     return true;
   }
 
+  /// Prepare the repos selection dropdown
   function initDropdown() {
     if (typeof repos != "undefined") {
       dpdProjects.innerHTML =
         `<option>--- Choisir ---</option>` + repos.map((r) => `<option value=${r.url}>${r.name}</option>`);
     }
-  }
-  dpdProjects.addEventListener("change", () => {
-    repoUrl.value = dpdProjects.value;
-    fetchGitLogs();
-  });
 
+    // Launch action on change
+    dpdProjects.addEventListener("change", () => {
+      repoUrl.value = dpdProjects.value;
+      fetchGitLogs();
+    });
+  }
+
+  /// Converts number of minutes into nicely formatted string
   function toHours(minutes) {
     return Math.floor(minutes / 60) + "h" + (minutes % 60).toString().padStart(2, "0") + "m";
   }
