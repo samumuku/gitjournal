@@ -1,6 +1,6 @@
+use clap::Parser;
 use std::fmt;
 use std::fmt::Formatter;
-use clap::Parser;
 
 type Owner = String;
 type Repo = String;
@@ -20,21 +20,32 @@ pub struct JournalInputs {
     #[arg()]
     pub(crate) repo: Repo,
 
-    /// Branch name
-    #[arg(short, long, default_value = "main")]
-    pub(crate) branch: Branch,
-
     /// Path to target file (for export and merge)
     #[arg(default_value = "jdt.xlsx")]
     pub file: File,
 
+    /// Branch name
+    #[arg(short, long, default_value = "main")]
+    pub(crate) branch: Branch,
+
     /// GitHub PAT to access protected repos
     #[arg(short, long)]
     pub(crate) pat: Option<Pat>,
+
+    /// Backup target file before updating it
+    #[arg(long, default_value = "true")]
+    pub(crate) backup: bool,
 }
 
 impl fmt::Display for JournalInputs {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{} [branch: {}] [using PAT: {}]",self.owner,self.repo,self.branch,self.pat.is_some())
+        write!(
+            f,
+            "{}/{} [branch: {}] [using PAT: {}]",
+            self.owner,
+            self.repo,
+            self.branch,
+            self.pat.is_some()
+        )
     }
 }
