@@ -73,7 +73,7 @@
       <br />
       <br />
       <span style="width: 80px">Branche :</span>
-      <input type="text" id="branch" value="main" style="width: 500px" />
+      <select id="dpdBranches"></select>
       <br />
       <button onclick="fetchGitLogs()">Ok</button>
     </div>
@@ -153,7 +153,8 @@
 <script src=".config.js"></script>
 <script>
   /// Initialize inputs with defaults from config file
-  document.getElementById("repoUrl").value = defaultRepoUrl;
+  repoUrl.value = defaultRepoUrl;
+  repoUrl.addEventListener("change", fetchGitBranches);
 
   initDropdown();
 
@@ -173,7 +174,8 @@
     const [_, owner, repo] = repoMatch;
 
     try {
-      const branch = document.getElementById("branch").value || "main";
+      debugger;
+      const branch = dpdBranches.value || "main";
       const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}`;
 
       // Mise à jour des titres
@@ -335,9 +337,38 @@
     // Launch action on change
     dpdProjects.addEventListener("change", () => {
       repoUrl.value = dpdProjects.value;
+      fetchGitBranches();
     });
   }
 
+  async function fetchGitBranches() {
+    const repoUrl = document.getElementById("repoUrl").value || defaultRepoUrl;
+    const authToken = defaultAuthToken;
+    // Extraire l'utilisateur et le nom du repository depuis l'URL
+    const repoMatch = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+    let owner;
+    let repo;
+    try {
+      const [_, o, r] = repoMatch;
+      owner = o;
+      repo = r;
+    } catch {
+      return;
+    }
+    const branchUrl = `https://api.github.com/repos/${owner}/${repo}/branches`;
+    // Récupérer les branches depuis l'API GitHub
+    const response = await fetch(branchUrl, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        Accept: "application/vnd.github.v3+json"
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Échec de la récupération des branches : ${response.status} ${response.statusText}`);
+    }
+    const branches = await response.json();
+    dpdBranches.innerHTML = branches.map((b) => "<option>" + b.name + "</option>").join();
+  }
   /// Converts number of minutes into nicely formatted string
   function toHours(minutes) {
     return Math.floor(minutes / 60) + "h" + (minutes % 60).toString().padStart(2, "0") + "m";
