@@ -1,5 +1,5 @@
 # gitjournal
-génération de journal de travail à partir d’un log git
+Génération de journal de travail à partir d’un log git
 
 ## Version HTML/JS
 
@@ -9,4 +9,17 @@ génération de journal de travail à partir d’un log git
 - Coller votre token dans `.config.js`
 - Définir un repo par défaut (ou pas)
 - Ouvrir `gitjournal.html`
+
+## Version CLI
+[Télécharger la dernière release](https://github.com/ETML-INF/gitjournal/releases)
+
+- Générer
+```shell
+gitjournal owner repo
+```
+
+- Aide et détails
+```shell
+gitjournal --help
+```
   
