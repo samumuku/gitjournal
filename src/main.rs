@@ -2,118 +2,56 @@
 //Date  : 2024
 //Place : ETML
 mod cli;
+mod github;
 mod model;
+mod spreadsheet;
 
-use std::error::Error;
-use std::fs;
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 
+use crate::github::retrieve_remote_commits;
+use crate::model::JournalEntry;
+use crate::spreadsheet::merge_entries_with_spreadsheet;
 use clap::Parser;
 use cli::JournalInputs;
-use log::{debug, error, info, warn, Level, LevelFilter};
-use std::path::Path;
-use itertools::Itertools;
-use octocrab::models;
-use octocrab::models::repos::RepoCommit;
-use octocrab::repos::RepoHandler;
+use log::{error, info, trace, warn, LevelFilter};
 
-use calamine::{Reader, open_workbook_auto, Xlsx, DataType};
-
-#[tokio::main]
+#[tokio::main] //octocrab needs async context
 async fn main() {
     setup_logger();
+    let mut journal_inputs = JournalInputs::parse();
+    if journal_inputs.pat.is_none() {
+        let pat_from_env = std::env::var("GITHUB_PAT");
+        if pat_from_env.is_ok() {
+            trace!("Using PAT from env");
+            journal_inputs.pat = Some(pat_from_env.unwrap());
+        }
+    }
 
-    match update_journal(JournalInputs::parse())
-        .await {
-        Ok(_) => {info!("Journal successfully updated")}
-        Err(e) => {error!("Failed to update journal : {:#}",e)}
+    match update_journal(journal_inputs).await {
+        Ok(_) => {
+            info!("Journal successfully updated")
+        }
+        Err(e) => {
+            error!("Failed to update journal : {:#}", e)
+        }
     }
 }
 
 async fn update_journal(journal_inputs: JournalInputs) -> Result<()> {
-    debug!("Start working on {}",journal_inputs);
+    info!("Start working on {}", journal_inputs);
 
-    //let remote_commits = retrieve_remote_commits(&JournalInputs);
+    let remote_commits = retrieve_remote_commits(&journal_inputs).await?;
 
-    let local_entries = retrieve_local_entries(&journal_inputs);
+    merge_entries_with_spreadsheet(
+        &journal_inputs,
+        &mut JournalEntry::from_repo_commits(remote_commits),
+    )?;
 
-    //wait for excel + remote
-    //let remote_commits = remote_commits.await?;
-
-    //merge entries
-
-    //write
-    
     Ok(())
-
 }
-
-fn write_entries(entries:Vec<()>) -> Result<()>{
-    for (i, entry) in entries.enumerate(){
-
-    }
-}
-
-fn retrieve_local_entries(journal_inputs: &JournalInputs) -> Result<Option<Vec<RepoCommit>>> {
-    //read local commits on excel file
-    if fs::exists(&journal_inputs.file).with_context(||format!("Failed to check existence of {}",&journal_inputs.file))
-    {
-        let mut workbook = open_workbook_auto(&journal_inputs.file)?;
-
-        let (first_sheet_name, _) = &workbook.worksheets()[0];
-
-        // Read whole worksheet data and provide some statisticsf
-        if let Some(Ok(range)) = workbook.worksheet_range(first_sheet_name) {
-            for row in range.rows().iter().skip(1) {
-                println!("row={:?}, row[0]={:?}", row, row[0]);
-            }
-            /*
-            range.row
-            let total_cells = range.get_size().0 * range.get_size().1;
-            let non_empty_cells: usize = range.used_cells().count();
-            println!("Found {} cells in 'Sheet1', including {} non empty cells",
-                     total_cells, non_empty_cells);
-            // alternatively, we can manually filter rows
-            assert_eq!(non_empty_cells, range.rows()
-                .flat_map(|r| r.iter().filter(|&c| c != &DataType::Empty)).count());*/
-        }
-
-        return (Ok(Some(vec![])));
-    }
-    info!("{} does not exist yet, nothing to import",journal_inputs.file);
-    Ok(None)
-}
-
-async fn retrieve_remote_commits(journal_inputs: &JournalInputs) -> Result<Vec<RepoCommit>>
-{
-    let mut builder = octocrab::OctocrabBuilder::default();
-    if journal_inputs.pat.is_some() {
-        builder = builder.personal_token(journal_inputs.pat.clone().unwrap());
-    }
-    let octocrab = builder.build().with_context(|| { "Failed to build octocrab" })?;
-    let repository = octocrab.repos(&journal_inputs.owner, &journal_inputs.repo);
-
-    let branches = repository
-        .list_branches().send().await
-        .with_context(||format!("Failed to list branches of repo {}, does it exist or is it misspelled ?",&journal_inputs))?;
-    if branches.items.iter().filter(|branch| branch.name == journal_inputs.branch).count() == 0
-    {
-        bail!("Unknown branch `{}` (availables:{})",journal_inputs.branch,
-            branches.items.iter().map(|b|&b.name).join(","));
-    }
-
-    let first_commits = repository.list_commits().branch(&journal_inputs.branch)
-        .send().await.with_context(||format!("Failed to list commits of {}",&journal_inputs))?;
-
-    let commits = octocrab.all_pages::<models::repos::RepoCommit>(first_commits).await?;
-    debug!("Found {} remote commits",commits.len());
-
-    Ok(commits)
-}
-
 
 fn setup_logger() {
-    simple_logger::SimpleLogger::new()
+    match simple_logger::SimpleLogger::new()
         .with_colors(true)
         .with_local_timestamps()
         .with_level(LevelFilter::Info) //others libs
@@ -127,5 +65,11 @@ fn setup_logger() {
         )
         .env()
         .init()
-        .unwrap();
+    {
+        //Mostly when cargo test is ran...
+        Err(e) => {
+            warn!("Cannot create logging: {}", e);
+        }
+        _ => {}
+    };
 }
