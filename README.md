@@ -9,4 +9,16 @@ génération de journal de travail à partir d’un log git
 - Coller votre token dans `.config.js`
 - Définir un repo par défaut (ou pas)
 - Ouvrir `gitjournal.html`
+
+## Version Rust
+[Télécharger la dernière release]
+- Générer
+```shell
+gitjournal owner repo
+```
+
+- Aide et détails
+```shell
+gitjournal --help
+```
   

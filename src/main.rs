@@ -27,9 +27,9 @@ async fn main() {
         }
     }
 
-    match update_journal(journal_inputs).await {
+    match update_journal(&journal_inputs).await {
         Ok(_) => {
-            info!("Journal successfully updated")
+            info!("Journal `{}` successfully updated",journal_inputs.file)
         }
         Err(e) => {
             error!("Failed to update journal : {:#}", e)
@@ -37,7 +37,7 @@ async fn main() {
     }
 }
 
-async fn update_journal(journal_inputs: JournalInputs) -> Result<()> {
+async fn update_journal(journal_inputs: &JournalInputs) -> Result<()> {
     info!("Start working on {}", journal_inputs);
 
     let remote_commits = retrieve_remote_commits(&journal_inputs).await?;
