@@ -1,5 +1,5 @@
 # gitjournal
-génération de journal de travail à partir d’un log git
+Génération de journal de travail à partir d’un log git
 
 ## Version HTML/JS
 
@@ -10,8 +10,9 @@ génération de journal de travail à partir d’un log git
 - Définir un repo par défaut (ou pas)
 - Ouvrir `gitjournal.html`
 
-## Version Rust
-[Télécharger la dernière release]
+## Version CLI
+[Télécharger la dernière release](https://github.com/ETML-INF/gitjournal/releases)
+
 - Générer
 ```shell
 gitjournal owner repo
