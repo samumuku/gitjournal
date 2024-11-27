@@ -314,7 +314,9 @@
             numericparts.forEach((p) => (duration = duration * 60 + parseInt(p)));
             commit.duration = duration;
           } else if (numericparts.length == 3) {
-            commit.date = new Date(numericparts[0], numericparts[1], numericparts[2]).toLocaleDateString("fr-FR", {
+            debugger
+            if (parseInt(numericparts[2]) > 2000) numericparts.reverse(); 
+            commit.date = new Date(numericparts[0], parseInt(numericparts[1])-1, numericparts[2]).toLocaleDateString("fr-FR", {
               year: "numeric",
               month: "long",
               day: "numeric"
