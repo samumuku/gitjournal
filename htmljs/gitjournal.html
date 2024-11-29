@@ -1,163 +1,160 @@
 <!DOCTYPE html>
 <html lang="fr">
-
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title id="page-title">Journal de travail par GitHub</title>
-  <link rel="icon" type="image/png" href="icon.png" />
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-
-    input,
-    button {
-      margin: 5px 0;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-
-    th,
-    td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-
-    th {
-      background-color: #f4f4f4;
-    }
-
-    ul,
-    ol,
-    li {
-      margin: 13px;
-    }
-
-    .date-header {
-      font-weight: bold;
-      font-size: 1.2em;
-      margin-top: 20px;
-    }
-
-    .d-none {
-      display: none;
-    }
-
-    #divHelpButton {
-      border: 1px solid black;
-      border-radius: 50%;
-      height: 20px;
-      width: 20px;
-      padding: 5px;
-      text-align: center;
-      background-color: lightgray;
-      float: right;
-      cursor: pointer;
-    }
-
-    @media print {
-
-      .no-print,
-      .no-print * {
-        display: none !important;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title id="page-title">Journal de travail par GitHub</title>
+    <link rel="icon" type="image/png" href="icon.png" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
       }
-    }
-  </style>
-</head>
 
-<body>
-  <div id="divHelpButton" class="no-print" onclick="toggleHelp()">?</div>
-  <h1 id="project-title">Journal de travail extrait de commits GitHub</h1>
-  <div id="inputZone">
-    <span style="width: 80px">URL du repo :</span>
-    <input type="text" id="repoUrl" placeholder="https://github.com/utilisateur/repository" style="width: 500px" />
-    ou
-    <select id="dpdProjects"></select>
-    <br />
-    <br />
-    <div id="divBranchSelection" class="d-none">
-      <span style="width: 80px">Branche :</span>
-      <select id="dpdBranches"></select>
+      input,
+      button {
+        margin: 5px 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #f4f4f4;
+      }
+
+      ul,
+      ol,
+      li {
+        margin: 13px;
+      }
+
+      .date-header {
+        font-weight: bold;
+        font-size: 1.2em;
+        margin-top: 20px;
+      }
+
+      .d-none {
+        display: none;
+      }
+
+      #divHelpButton {
+        border: 1px solid black;
+        border-radius: 50%;
+        height: 20px;
+        width: 20px;
+        padding: 5px;
+        text-align: center;
+        background-color: lightgray;
+        float: right;
+        cursor: pointer;
+      }
+
+      @media print {
+        .no-print,
+        .no-print * {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="divHelpButton" class="no-print" onclick="toggleHelp()">?</div>
+    <h1 id="project-title">Journal de travail extrait de commits GitHub</h1>
+    <div id="inputZone">
+      <span style="width: 80px">URL du repo :</span>
+      <input type="text" id="repoUrl" placeholder="https://github.com/utilisateur/repository" style="width: 500px" />
+      ou
+      <select id="dpdProjects"></select>
+      <br />
+      <br />
+      <div id="divBranchSelection" class="d-none">
+        <span style="width: 80px">Branche :</span>
+        <select id="dpdBranches"></select>
+      </div>
+      <br />
+      <button id="cmdGo" onclick="fetchGitLogs()" class="d-none">Ok</button>
     </div>
-    <br />
-    <button id="cmdGo" onclick="fetchGitLogs()" class="d-none">Ok</button>
-  </div>
-  <div id="logs"></div>
-  <div id="errors" class="no-print d-none"></div>
-  <div id="divHelp" class="d-none">
-    <h3>Git journal</h3>
-    <p>Cet outil vous permet de générer un journal de travail basé sur le log d'un repo Git</p>
-    <p>Voici comment l'utiliser :</p>
-    <ul>
-      <li>
-        Appliquer la règle suivante : <span style="font-weight: bolder">toute activité laisse une trace</span>. Cela
-        est également vrai pour des moments d'apprentissage ou d'écoute :
-      </li>
+    <div id="logs"></div>
+    <div id="errors" class="no-print d-none"></div>
+    <div id="divHelp" class="d-none">
+      <h3>Git journal</h3>
+      <p>Cet outil vous permet de générer un journal de travail basé sur le log d'un repo Git</p>
+      <p>Voici comment l'utiliser :</p>
       <ul>
-        <li>Si on a codé, la trace c'est bien sur le code</li>
         <li>
-          Si on a fait de la documentation, la trace est une nouvelle version du rapport ou de toute autre document
+          Appliquer la règle suivante : <span style="font-weight: bolder">toute activité laisse une trace</span>. Cela
+          est également vrai pour des moments d'apprentissage ou d'écoute :
         </li>
-        <li>Si on a assisté à une réunion, la trace, c'est le procès-verbal de la réunion</li>
+        <ul>
+          <li>Si on a codé, la trace c'est bien sur le code</li>
+          <li>
+            Si on a fait de la documentation, la trace est une nouvelle version du rapport ou de toute autre document
+          </li>
+          <li>Si on a assisté à une réunion, la trace, c'est le procès-verbal de la réunion</li>
+          <li>
+            Si on a écouté une explication, visionné un tutoriel ou lu un article ou une documentation, la trace c'est
+            les notes qui résument ce qu'on a appris
+          </li>
+        </ul>
         <li>
-          Si on a écouté une explication, visionné un tutoriel ou lu un article ou une documentation, la trace c'est
-          les notes qui résument ce qu'on a appris
+          Pour chaque commit Git, vous fournissez les données nécessaires à la construction du journal au moyen de
+          champs dont la valeur est indiquée entre crochets carrés []. Il y a trois types de champs possibles:
+          <ol>
+            <li>
+              La durée (obligatoire). Le temps qu'il vous a fallu pour produire le contenu de ce commit. Il peut être
+              exprimé en minutes ou en heure et minute. Exemples de valeur possible : [45], [45min], [1h20], [80m]
+            </li>
+            <li>
+              Le status de la tâche (obligatoire). Le format est libre, mais par convention nous n'utilisons que [WIP]
+              (pour une tâche inachevée) et [DONE].
+            </li>
+            <li>
+              Une date corrective (facultative), pour rattraper une erreur si par exemple on a fait un commit la semaine
+              précédente et que l'on a oublié de fournir les informations. Exemple : j'ai fait un commit le 12 janvier
+              2024 dont l'effet est de rajouter un bouton d'aide au gitjournal, mais j'ai oublié de préciser la durée et
+              le status. Le 15 janvier 2024, je fais un commit vide
+              <div style="font-family: 'Courier New'; padding: 5px">
+                git commit --allow-empty -m "feat(gitjournal): Ajouter un bouton d'aide" -m "[30m][DONE][2024-01-15]"
+              </div>
+              Ce commit aura pour effet de faire apparaître mon travail du 12 janvier au bon endroit dans le journal.
+            </li>
+          </ol>
         </li>
+        <li>
+          Renommez le fichier <span style="font-family: 'Courier New'">.config.js.example</span> en
+          <span style="font-family: 'Courier New'">.config.js</span>
+        </li>
+        <li>
+          Générez un Git Personal Access Token (<a href="https://github.com/settings/tokens">PAT</a>) et placez-le dans
+          <span style="font-family: 'Courier New'">.config.js</span><br />
+          <span style="font-weight: bold">Attention:</span> Veillez à ce que votre token aie bien la portée "repo" (voir
+          image ci-dessous)<br />
+        </li>
+        <li>
+          Optionnellement, vous pouvez configurer dans
+          <span style="font-family: 'Courier New'">.config.js.example</span> un repo qui sera pris par défaut et/ou une
+          liste de repos avec lesquelles vous travaillez actuellement
+        </li>
+        <li>Cliquez sur une des entrées du journal pour atteindre le commit correspondant</li>
+        <li>Pour une version PDF, il vous suffit d'"imprimer" cette page</li>
       </ul>
-      <li>
-        Pour chaque commit Git, vous fournissez les données nécessaires à la construction du journal au moyen de
-        champs dont la valeur est indiquée entre crochets carrés []. Il y a trois types de champs possibles:
-        <ol>
-          <li>
-            La durée (obligatoire). Le temps qu'il vous a fallu pour produire le contenu de ce commit. Il peut être
-            exprimé en minutes ou en heure et minute. Exemples de valeur possible : [45], [45min], [1h20], [80m]
-          </li>
-          <li>
-            Le status de la tâche (obligatoire). Le format est libre, mais par convention nous n'utilisons que [WIP]
-            (pour une tâche inachevée) et [DONE].
-          </li>
-          <li>
-            Une date corrective (facultative), pour rattraper une erreur si par exemple on a fait un commit la semaine
-            précédente et que l'on a oublié de fournir les informations. Exemple : j'ai fait un commit le 12 janvier
-            2024 dont l'effet est de rajouter un bouton d'aide au gitjournal, mais j'ai oublié de préciser la durée et
-            le status. Le 15 janvier 2024, je fais un commit vide
-            <div style="font-family: 'Courier New'; padding: 5px">
-              git commit --allow-empty -m "feat(gitjournal): Ajouter un bouton d'aide" -m "[30m][DONE][2024-01-15]"
-            </div>
-            Ce commit aura pour effet de faire apparaître mon travail du 12 janvier au bon endroit dans le journal.
-          </li>
-        </ol>
-      </li>
-      <li>
-        Renommez le fichier <span style="font-family: 'Courier New'">.config.js.example</span> en
-        <span style="font-family: 'Courier New'">.config.js</span>
-      </li>
-      <li>
-        Générez un Git Personal Access Token (<a href="https://github.com/settings/tokens">PAT</a>) et placez-le dans
-        <span style="font-family: 'Courier New'">.config.js</span><br />
-        <span style="font-weight: bold">Attention:</span> Veillez à ce que votre token aie bien la portée "repo" (voir
-        image ci-dessous)<br />
-      </li>
-      <li>
-        Optionnellement, vous pouvez configurer dans
-        <span style="font-family: 'Courier New'">.config.js.example</span> un repo qui sera pris par défaut et/ou une
-        liste de repos avec lesquelles vous travaillez actuellement
-      </li>
-      <li>Cliquez sur une des entrées du journal pour atteindre le commit correspondant</li>
-      <li>Pour une version PDF, il vous suffit d'"imprimer" cette page</li>
-    </ul>
-    <h4>Génération du PAT</h4>
-    <img width="800px" src="./generatePAT.png" />
-  </div>
-</body>
-
+      <h4>Génération du PAT</h4>
+      <img width="800px" src="./generatePAT.png" />
+    </div>
+  </body>
 </html>
 
 <script src=".config.js"></script>
@@ -244,8 +241,9 @@
 
             // Add row to table
             const row = `
-                  <tr onclick="window.open('${commit.html_url
-              }', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
+                  <tr onclick="window.open('${
+                    commit.html_url
+                  }', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
                     <td>${commit.name}</td>
                     <td>${commit.description}</td> <!-- Si pas de description, la cellule reste vide -->
                     <td>${toHours(commit.duration)}</td>
@@ -314,13 +312,15 @@
             numericparts.forEach((p) => (duration = duration * 60 + parseInt(p)));
             commit.duration = duration;
           } else if (numericparts.length == 3) {
-            debugger
-            if (parseInt(numericparts[2]) > 2000) numericparts.reverse(); 
-            commit.date = new Date(numericparts[0], parseInt(numericparts[1])-1, numericparts[2]).toLocaleDateString("fr-FR", {
-              year: "numeric",
-              month: "long",
-              day: "numeric"
-            });
+            if (parseInt(numericparts[2]) > 2000) numericparts.reverse();
+            commit.date = new Date(numericparts[0], parseInt(numericparts[1]) - 1, numericparts[2]).toLocaleDateString(
+              "fr-FR",
+              {
+                year: "numeric",
+                month: "long",
+                day: "numeric"
+              }
+            );
             commit.description += `<br>(Date corrigée)`;
           }
         });
@@ -378,8 +378,8 @@
     }
     const branches = await response.json();
     dpdBranches.innerHTML = branches.map((b) => "<option>" + b.name + "</option>").join();
-    divBranchSelection.classList.remove("d-none")
-    cmdGo.classList.remove("d-none")
+    divBranchSelection.classList.remove("d-none");
+    cmdGo.classList.remove("d-none");
   }
   /// Converts number of minutes into nicely formatted string
   function toHours(minutes) {
