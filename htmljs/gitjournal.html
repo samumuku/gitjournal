@@ -339,9 +339,11 @@
 
   /// Prepare the repos selection dropdown
   function initDropdown() {
-    if (typeof repos != "undefined") {
+    if (typeof repos != "undefined" && repos.length > 0) {
       dpdProjects.innerHTML =
         `<option>--- Choisir ---</option>` + repos.map((r) => `<option value=${r.url}>${r.name}</option>`);
+    } else {
+      cmdGo.classList.remove("d-none");
     }
 
     // Launch action on change
