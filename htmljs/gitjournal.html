@@ -183,35 +183,50 @@
     try {
       const branch = dpdBranches.value || "main";
       const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}`;
-
+      console.log(apiUrl);
       // Mise à jour des titres
       document.getElementById("page-title").innerText = `Journal de ${owner} pour ${repo}`;
       document.getElementById("project-title").innerText = `Journal de ${owner} pour ${repo}`;
 
       // Récupérer les commits depuis l'API GitHub
-      const response = await fetch(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          Accept: "application/vnd.github.v3+json"
-        }
-      });
 
-      if (!response.ok) {
-        throw new Error(`Échec de la récupération : ${response.status} ${response.statusText}`);
+      let page = 1;
+      let allCommits = [];
+      let hasMore = true;
+
+      while (hasMore) {
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}&per_page=100&page=${page}`;
+
+        const response = await fetch(apiUrl, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+
+        if (!response.ok) {
+          console.error("Erreur lors de la récupération des commits:", response.status);
+          return;
+        }
+
+        const commits = await response.json();
+        allCommits = allCommits.concat(commits);
+
+        if (commits.length < 100) {
+          hasMore = false; // S'il y a moins de 100 commits, c'est la dernière page
+        } else {
+          page++;
+        }
       }
 
-      const commits = await response.json();
-      if (commits.length === 0) {
+      if (allCommits.length === 0) {
         logsDiv.innerHTML = "<p>Aucun commit trouvé pour la branche spécifiée.</p>";
         return;
       }
 
       document.getElementById("inputZone").classList.add("d-none");
       const errors = []; // Commits that don't comply
-
+      console.log(allCommits);
       // Regrouper les commits par date
       const commitsByDate = {};
-      commits.forEach((commit) => {
+      allCommits.forEach((commit) => {
         const groomed = groom(commit);
         if (typeof commit.date != "undefined") {
           if (!commitsByDate[commit.date]) {
