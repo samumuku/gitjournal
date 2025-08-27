@@ -166,6 +166,10 @@
   initDropdown();
 
   async function fetchGitLogs() {
+    if (typeof username == "undefined") {
+      logsDiv.innerHTML = "<p style='color: red;'>Veuillez définir un nom d'utilisateur dans le fichier .config.js</p>";
+      return;
+    }
     const repoUrl = document.getElementById("repoUrl").value || defaultRepoUrl;
     const authToken = defaultAuthToken;
     const logsDiv = document.getElementById("logs");
@@ -183,43 +187,73 @@
     try {
       const branch = dpdBranches.value || "main";
       const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}`;
-
+      console.log(apiUrl);
       // Mise à jour des titres
-      document.getElementById("page-title").innerText = `Journal de ${owner} pour ${repo}`;
-      document.getElementById("project-title").innerText = `Journal de ${owner} pour ${repo}`;
+      document.getElementById("page-title").innerText = `Journal de ${username} pour ${repo}`;
+      document.getElementById("project-title").innerText = `Journal de ${username} pour ${repo}`;
 
       // Récupérer les commits depuis l'API GitHub
-      const response = await fetch(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          Accept: "application/vnd.github.v3+json"
-        }
-      });
 
-      if (!response.ok) {
-        throw new Error(`Échec de la récupération : ${response.status} ${response.statusText}`);
+      let page = 1;
+      let allCommits = [];
+      let hasMore = true;
+
+      while (hasMore) {
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}&per_page=100&page=${page}`;
+
+        const response = await fetch(apiUrl, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+
+        if (!response.ok) {
+          console.error("Erreur lors de la récupération des commits:", response.status);
+          return;
+        }
+
+        const commits = await response.json();
+        allCommits = allCommits.concat(commits);
+
+        if (commits.length < 100) {
+          hasMore = false; // S'il y a moins de 100 commits, c'est la dernière page
+        } else {
+          if (commits[99].commit.author.date < journalStartDate) {
+            hasMore = false; // Si la date du commit est antérieure à journalStartDate, on arrête
+          }
+          page++;
+        }
       }
 
-      const commits = await response.json();
-      if (commits.length === 0) {
+      if (allCommits.length === 0) {
         logsDiv.innerHTML = "<p>Aucun commit trouvé pour la branche spécifiée.</p>";
         return;
       }
 
       document.getElementById("inputZone").classList.add("d-none");
       const errors = []; // Commits that don't comply
-
+      console.log(allCommits);
       // Regrouper les commits par date
       const commitsByDate = {};
-      commits.forEach((commit) => {
+      let fiCommits = false;
+      allCommits.forEach((commit) => {
         const groomed = groom(commit);
+        if (typeof username != "undefined" && commit.commit.author.name != username) {
+          return; // Ignore les commits qui ne sont pas de l'utilisateur spécifié
+        }
+        if (typeof journalStartDate != "undefined" && commit.commit.author.date < journalStartDate) {
+          return; // Ignore les commits qui ne sont pas dans la période spécifiée
+        }
         if (typeof commit.date != "undefined") {
           if (!commitsByDate[commit.date]) {
             commitsByDate[commit.date] = [];
           }
           commitsByDate[commit.date].push(commit);
+          fiCommits = true;
         }
       });
+      if (!fiCommits) {
+        logsDiv.innerHTML = '<p style="color: red;">Aucun commit significatif a été trouvé</p>';
+        return;
+      }
 
       // Créer le tableau pour chaque jour
       for (const date in commitsByDate) {
@@ -227,12 +261,12 @@
 
         const table = document.createElement("table");
         const headerRow = `
-                  <tr>
-                    <th style="width:30%;">Tâche</th>
-                    <th style="width:60%;">Description</th>
-                    <th style="width:5%;">Durée</th>
-                    <th style="width:5%;">Status</th>
-                    </tr>`;
+        <tr>
+          <th style="width:30%;">Tâche</th>
+          <th style="width:60%;">Description</th>
+          <th style="width:5%;">Durée</th>
+          <th style="width:5%;">Status</th>
+          </tr>`;
         table.innerHTML = headerRow;
 
         commitsByDate[date].forEach((commit) => {

@@ -1,7 +1,7 @@
 # gitjournal
 Génération de journal de travail à partir d’un log git
 
-## Version HTML/JS
+## Version GUI HTML/JS
 
 - Dans le dossier `htmljs`
 - Renommer `.config.js.example` en `.config.js`
@@ -51,3 +51,6 @@ gitjournal --help
 - [1h15m-WIP-#4]
 - [15m-DONE]
 - [2h-WIP]
+
+## Version GUI Electron
+[GitJournal par Thomas Nardou](https://github.com/ThomNardou/GitJournal)
