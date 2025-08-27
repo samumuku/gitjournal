@@ -34,4 +34,20 @@ gitjournal ETML-INF gitjournal
 ```shell
 gitjournal --help
 ```
-  
+
+#### Format général (à mettre dans le corps du message de commit) :
+
+‘[**Durée**-Statut-Référence-Date]‘
+
+>seule la durée est obligatoire
+
+>le reste du message est utilisé comme "description" (le titre du commit comme titre de la tâche)
+
+![Screenshot](images/screenshot_20250827_162217.png)
+
+
+##### Exemples d’expressions valides
+
+- [1h15m-WIP-#4]
+- [15m-DONE]
+- [2h-WIP]
