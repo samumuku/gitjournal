@@ -252,6 +252,8 @@
       });
       if (!fiCommits) {
         logsDiv.innerHTML = '<p style="color: red;">Aucun commit significatif a été trouvé</p>';
+        if (typeof username != "undefined") logsDiv.innerHTML += '<p style="color: red;">Utilisateur recherché: '+username+'</p>';
+        if (typeof journalStartDate != "undefined") logsDiv.innerHTML += '<p style="color: red;">Date de début: '+journalStartDate+'</p>';
         return;
       }
 
