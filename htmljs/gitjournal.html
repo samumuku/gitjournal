@@ -74,10 +74,16 @@
     <div id="divHelpButton" class="no-print" onclick="toggleHelp()">?</div>
     <h1 id="project-title">Journal de travail extrait de commits GitHub</h1>
     <div id="inputZone">
-      <span style="width: 80px">URL du repo :</span>
-      <input type="text" id="repoUrl" placeholder="https://github.com/utilisateur/repository" style="width: 500px" />
-      ou
-      <select id="dpdProjects"></select>
+      <div id="defaultMode" class="d-none">
+        <div id="txtDefaultRepo"></div>
+      </div>
+      <div id="singleMode" class="d-none">
+        <span style="width: 80px">URL du repo :</span>
+        <input type="text" id="repoUrl" placeholder="https://github.com/utilisateur/repository" style="width: 500px" />
+      </div>
+      <div id="selectMode" class="d-none">
+        <select id="dpdProjects"></select>
+      </div>
       <br />
       <br />
       <div id="divBranchSelection" class="d-none">
@@ -159,17 +165,30 @@
 
 <script src=".config.js"></script>
 <script>
-  /// Initialize inputs with defaults from config file
-  repoUrl.value = defaultRepoUrl;
-  repoUrl.addEventListener("change", fetchGitBranches);
+  var filteringUsers = []; // the github user names to take into account as committers
+  var repoOwner = "?"; // the owner of the selected repo
 
-  initDropdown();
+  configure();
+
+  async function configure() {
+    /// Initialize inputs with defaults from config file
+    if (typeof defaultRepo != "undefined") {
+      defaultMode.classList.remove("d-none");
+      txtDefaultRepo.innerText = typeof defaultRepo.alias != "undefined" ? defaultRepo.alias : defaultRepo.url;
+      repoUrl.value = defaultRepo.url;
+      await fetchGitBranches();
+      filteringUsers.push(repoOwner);
+      if (typeof defaultRepo.users != "undefined") filteringUsers.push(...defaultRepo.users);
+    } else if (typeof repos != "undefined") {
+      selectMode.classList.remove("d-none");
+      initDropdown();
+    } else {
+      singleMode.classList.remove("d-none");
+      repoUrl.addEventListener("change", loadSingle);
+    }
+  }
 
   async function fetchGitLogs() {
-    if (typeof username == "undefined") {
-      logsDiv.innerHTML = "<p style='color: red;'>Veuillez définir un nom d'utilisateur dans le fichier .config.js</p>";
-      return;
-    }
     const repoUrl = document.getElementById("repoUrl").value || defaultRepoUrl;
     const authToken = defaultAuthToken;
     const logsDiv = document.getElementById("logs");
@@ -187,10 +206,10 @@
     try {
       const branch = dpdBranches.value || "main";
       const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}`;
-      console.log(apiUrl);
+      apiUrl;
       // Mise à jour des titres
-      document.getElementById("page-title").innerText = `Journal de ${username} pour ${repo}`;
-      document.getElementById("project-title").innerText = `Journal de ${username} pour ${repo}`;
+      document.getElementById("page-title").innerText = `Journal de ${filteringUsers.join(", ")} pour ${repo}`;
+      document.getElementById("project-title").innerText = `Journal de ${filteringUsers.join(", ")} pour ${repo}`;
 
       // Récupérer les commits depuis l'API GitHub
 
@@ -230,15 +249,13 @@
 
       document.getElementById("inputZone").classList.add("d-none");
       const errors = []; // Commits that don't comply
-      console.log(allCommits);
       // Regrouper les commits par date
       const commitsByDate = {};
       let fiCommits = false;
       allCommits.forEach((commit) => {
         const groomed = groom(commit);
-        if (typeof username != "undefined" && commit.commit.author.name != username) {
-          return; // Ignore les commits qui ne sont pas de l'utilisateur spécifié
-        }
+        if (!filteringUsers.includes(commit.commit.author.name)) return; // Ignore les commits qui ne sont pas de l'utilisateur spécifié
+
         if (typeof journalStartDate != "undefined" && commit.commit.author.date < journalStartDate) {
           return; // Ignore les commits qui ne sont pas dans la période spécifiée
         }
@@ -257,26 +274,49 @@
         return;
       }
 
-      // Créer le tableau pour chaque jour
-      for (const date in commitsByDate) {
-        let totalDurationInMinutes = 0;
-
-        const table = document.createElement("table");
-        const headerRow = `
+      const headerRow =
+        filteringUsers.length > 1
+          ? `
+        <tr>
+          <th style="width:25%;">Tâche</th>
+          <th style="width:55%;">Description</th>
+          <th style="width:5%;">Durée</th>
+          <th style="width:5%;">Status</th>
+          <th style="width:10%;">User</th>
+          </tr>`
+          : `
         <tr>
           <th style="width:30%;">Tâche</th>
           <th style="width:60%;">Description</th>
           <th style="width:5%;">Durée</th>
           <th style="width:5%;">Status</th>
           </tr>`;
-        table.innerHTML = headerRow;
 
+      let showIt = false;
+      // Créer le tableau pour chaque jour
+      for (const date in commitsByDate) {
+        let totalDurationInMinutes = 0;
+        const table = document.createElement("table");
+        table.innerHTML = headerRow;
         commitsByDate[date].forEach((commit) => {
           if (commitIsOKForJournal(commit)) {
+            showIt = true;
             totalDurationInMinutes += commit.duration;
 
             // Add row to table
-            const row = `
+            const row =
+              filteringUsers.length > 1
+                ? `
+                  <tr onclick="window.open('${
+                    commit.html_url
+                  }', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
+                    <td>${commit.name}</td>
+                    <td>${commit.description}</td> <!-- Si pas de description, la cellule reste vide -->
+                    <td>${toHours(commit.duration)}</td>
+                    <td>${commit.status}</td>
+                    <td>${commit.commit.author.name}</td>
+                  </tr>`
+                : `
                   <tr onclick="window.open('${
                     commit.html_url
                   }', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
@@ -291,21 +331,23 @@
           }
         });
 
-        // Ajouter la ligne de total à la table
-        const totalRow = `
+        if (showIt) {
+          // Ajouter la ligne de total à la table
+          const totalRow = `
               <tr>
                   <td></td>
                   <td style="text-align: right; font-weight: bold;">Total :</td>
                   <td style="font-weight: bold;">${toHours(totalDurationInMinutes)}</td>
                   <td></td>
               </tr>`;
-        table.innerHTML += totalRow;
-        // Ajouter un en-tête pour la date et le tableau
-        const dateHeader = document.createElement("div");
-        dateHeader.className = "date-header";
-        dateHeader.textContent = `${date}`;
-        logsDiv.appendChild(dateHeader);
-        logsDiv.appendChild(table);
+          table.innerHTML += totalRow;
+          // Ajouter un en-tête pour la date et le tableau
+          const dateHeader = document.createElement("div");
+          dateHeader.className = "date-header";
+          dateHeader.textContent = `${date}`;
+          logsDiv.appendChild(dateHeader);
+          logsDiv.appendChild(table);
+        }
       }
       // Show errors
       if (errors.length > 0) {
@@ -377,15 +419,19 @@
   function initDropdown() {
     if (typeof repos != "undefined" && repos.length > 0) {
       dpdProjects.innerHTML =
-        `<option>--- Choisir ---</option>` + repos.map((r) => `<option value=${r.url}>${r.name}</option>`);
+        `<option>--- Choisir ---</option>` +
+        repos.map((r) => `<option value=${r.url}>${r.alias ? r.alias : "r.url"}</option>`);
     } else {
       cmdGo.classList.remove("d-none");
     }
 
     // Launch action on change
-    dpdProjects.addEventListener("change", () => {
+    dpdProjects.addEventListener("change", async () => {
       repoUrl.value = dpdProjects.value;
-      fetchGitBranches();
+      await fetchGitBranches();
+      const selectedRepo = repos.find((r) => r.url == dpdProjects.value);
+      filteringUsers.push(repoOwner);
+      if (typeof selectedRepo.users != "undefined") filteringUsers.push(...selectedRepo.users);
     });
   }
 
@@ -394,16 +440,15 @@
     const authToken = defaultAuthToken;
     // Extraire l'utilisateur et le nom du repository depuis l'URL
     const repoMatch = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
-    let owner;
     let repo;
     try {
       const [_, o, r] = repoMatch;
-      owner = o;
+      repoOwner = o;
       repo = r;
     } catch {
       return;
     }
-    const branchUrl = `https://api.github.com/repos/${owner}/${repo}/branches`;
+    const branchUrl = `https://api.github.com/repos/${repoOwner}/${repo}/branches`;
     // Récupérer les branches depuis l'API GitHub
     const response = await fetch(branchUrl, {
       headers: {
@@ -420,6 +465,12 @@
     cmdGo.classList.remove("d-none");
   }
   /// Converts number of minutes into nicely formatted string
+
+  /// Load a repo from url manual input
+  async function loadSingle() {
+    await fetchGitBranches();
+    filteringUsers.push(repoOwner);
+  }
   function toHours(minutes) {
     return Math.floor(minutes / 60) + "h" + (minutes % 60).toString().padStart(2, "0") + "m";
   }
