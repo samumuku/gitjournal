@@ -269,8 +269,10 @@
       });
       if (!fiCommits) {
         logsDiv.innerHTML = '<p style="color: red;">Aucun commit significatif a été trouvé</p>';
-        if (typeof username != "undefined") logsDiv.innerHTML += '<p style="color: red;">Utilisateur recherché: '+username+'</p>';
-        if (typeof journalStartDate != "undefined") logsDiv.innerHTML += '<p style="color: red;">Date de début: '+journalStartDate+'</p>';
+        if (typeof username != "undefined")
+          logsDiv.innerHTML += '<p style="color: red;">Utilisateur recherché: ' + username + "</p>";
+        if (typeof journalStartDate != "undefined")
+          logsDiv.innerHTML += '<p style="color: red;">Date de début: ' + journalStartDate + "</p>";
         return;
       }
 
@@ -292,9 +294,9 @@
           <th style="width:5%;">Status</th>
           </tr>`;
 
-      let showIt = false;
       // Créer le tableau pour chaque jour
       for (const date in commitsByDate) {
+        let showIt = false;
         let totalDurationInMinutes = 0;
         const table = document.createElement("table");
         table.innerHTML = headerRow;
