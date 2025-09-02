@@ -330,6 +330,20 @@
       const nocommitref = exceptions.filter((c) => typeof c.sha == "undefined");
       const allCommitsSorted = nocommitref.concat(allCommits).sort((a, b) => new Date(a.date) - new Date(b.date));
       const myCommits = allCommitsSorted.filter((c) => filteringUsers.includes(c.author));
+
+      // Apply patches to existing commits
+      const patches = exceptions.filter((c) => typeof c.sha != "undefined");
+      patches.forEach((patch) => {
+        const commit = allCommits.find((c) => c.sha == patch.sha);
+        if (commit) {
+          if (typeof patch.name != "undefined") commit.name = patch.name;
+          if (typeof patch.description != "undefined") commit.description = patch.description;
+          if (typeof patch.date != "undefined") commit.date = patch.date;
+          if (typeof patch.duration != "undefined") commit.duration = patch.duration;
+          if (typeof patch.status != "undefined") commit.status = patch.status;
+        }
+      });
+
       const errors = []; // Commits that don't comply
       // Regrouper les commits par date
       const commitsByDate = {};
@@ -393,6 +407,7 @@
             newRow.classList.add("patched");
           } else {
             newRow.classList.add("linked");
+            newRow.dataset.sha = commit.sha;
             newRow.addEventListener("click", () => {
               window.open(repoUrl + "/commit/" + commit.sha, "_blank");
             });
