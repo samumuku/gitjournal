@@ -233,27 +233,27 @@
     </div>
     <div class="overlay" id="overlay">
       <div class="modal">
-        <h2>Saisie manuelle</h2>
+        <h2 id="heaInputForm">Saisie manuelle</h2>
         <form id="dataForm">
           <label
             >Nom
-            <input type="text" name="name" />
+            <input type="text" name="name" id="txtName" />
           </label>
           <label
             >Description
-            <textarea name="description"></textarea>
+            <textarea name="description" id="txtDescription"></textarea>
           </label>
           <label
             >Date
-            <input type="datetime-local" name="date" />
+            <input type="datetime-local" name="date" id="datDate" />
           </label>
           <label
             >Durée (minutes)
-            <input type="number" name="duration" />
+            <input type="number" name="duration" id="numDuration" />
           </label>
           <label
             >Statut
-            <select name="status">
+            <select name="status" id="dpdStatus">
               <option selected>Done</option>
               <option>WIP</option>
             </select>
@@ -262,6 +262,7 @@
             <button type="button" id="closeBtn">Annuler</button>
             <button type="button" id="saveBtn">Enregistrer</button>
           </div>
+          <input type="hidden" id="hidSHA" name="sha" />
         </form>
       </div>
     </div>
@@ -272,6 +273,7 @@
 <script>
   var filteringUsers = []; // the github user names to take into account as committers
   var repoOwner = "?"; // the owner of the selected repo
+  var myCommits = [];
 
   configure();
 
@@ -319,23 +321,19 @@
 
       // Récupérer les commits depuis l'API GitHub
 
-      const allCommits = (await getAllCommits(owner, repo, branch, defaultAuthToken)).slice(0, 10);
+      const allCommits = await getAllCommits(owner, repo, branch, defaultAuthToken);
 
       if (allCommits.length === 0) {
         logsDiv.innerHTML = "<p>Aucun commit trouvé pour la branche spécifiée.</p>";
         return;
       }
 
-      // Add exceptions without commit (i.e: completely manual entries of the journal)
-      const nocommitref = exceptions.filter((c) => typeof c.sha == "undefined");
-      const allCommitsSorted = nocommitref.concat(allCommits).sort((a, b) => new Date(a.date) - new Date(b.date));
-      const myCommits = allCommitsSorted.filter((c) => filteringUsers.includes(c.author));
-
       // Apply patches to existing commits
       const patches = exceptions.filter((c) => typeof c.sha != "undefined");
       patches.forEach((patch) => {
         const commit = allCommits.find((c) => c.sha == patch.sha);
         if (commit) {
+          commit.patch = true;
           if (typeof patch.name != "undefined") commit.name = patch.name;
           if (typeof patch.description != "undefined") commit.description = patch.description;
           if (typeof patch.date != "undefined") commit.date = patch.date;
@@ -343,6 +341,11 @@
           if (typeof patch.status != "undefined") commit.status = patch.status;
         }
       });
+
+      // Add exceptions without commit (i.e: completely manual entries of the journal)
+      const nocommitref = exceptions.filter((c) => typeof c.sha == "undefined");
+      const allCommitsSorted = nocommitref.concat(allCommits).sort((a, b) => new Date(a.date) - new Date(b.date));
+      myCommits = allCommitsSorted.filter((c) => filteringUsers.includes(c.author));
 
       const errors = []; // Commits that don't comply
       // Regrouper les commits par date
@@ -402,9 +405,11 @@
           if (!tr) return; // clique sur une ligne non cliquable
           const sha = tr.dataset.sha;
           if (!sha) return;
-
-          window.open(`${repoUrl}/commit/${sha}`, "_blank");
-          console.log("click");
+          if (e.shiftKey) {
+            editCommit(sha);
+          } else {
+            window.open(`${repoUrl}/commit/${sha}`, "_blank");
+          }
         });
         commitsByDate[date].forEach((commit) => {
           showIt = true;
@@ -412,6 +417,7 @@
 
           // Add row to table
           const newRow = document.createElement("tr");
+          if (commit.patch) newRow.classList.add("patched");
           if (typeof commit.sha == "undefined") {
             newRow.classList.add("patched");
           } else {
@@ -535,6 +541,13 @@
     };
   }
 
+  function editCommit(sha) {
+    heaInputForm.innerText = "Corriger une entrée";
+    txtName.disabled = true;
+    dpdStatus.disabled = true;
+    hidSHA.value = sha;
+    overlay.classList.add("active");
+  }
   /// Prepare the repos selection dropdown
   function initDropdown() {
     if (typeof repos != "undefined" && repos.length > 0) {
@@ -625,15 +638,12 @@
   const overlay = document.getElementById("overlay");
   const dateInput = document.querySelector('input[name="date"]');
 
-  // Préremplir la date
-  const iso = "2025-09-01T13:43:53Z";
-  const d = new Date(iso);
-  const pad = (n) => String(n).padStart(2, "0");
-  dateInput.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
-    d.getMinutes()
-  )}`;
-
-  openBtn.onclick = () => overlay.classList.add("active");
+  openBtn.onclick = () => {
+    heaInputForm.innerText = "Ajout d'une entrée";
+    txtName.disabled = false;
+    dpdStatus.disabled = false;
+    overlay.classList.add("active");
+  };
   closeBtn.onclick = () => overlay.classList.remove("active");
   overlay.onclick = (e) => {
     if (e.target === overlay) overlay.classList.remove("active");
@@ -641,15 +651,27 @@
 
   saveBtn.onclick = () => {
     const fd = new FormData(dataForm);
-    exceptions.push({
-      patch: true,
-      name: fd.get("name"),
-      description: fd.get("description"),
-      date: new Date(fd.get("date")).toISOString(),
-      duration: Number(fd.get("duration")),
-      status: fd.get("status"),
-      author: repoOwner
-    });
+    const sha = fd.get("sha");
+    if (sha) {
+      let patch = { sha: sha };
+      const patchdescription = fd.get("description");
+      const patchdate = fd.get("date");
+      const patchduration = fd.get("duration");
+      if (patchdescription) patch.description = patchdescription;
+      if (patchdate) patch.date = patchdate;
+      if (patchduration) patch.duration = patchduration;
+      exceptions.push(patch);
+    } else {
+      exceptions.push({
+        patch: true,
+        name: fd.get("name"),
+        description: fd.get("description"),
+        date: new Date(fd.get("date")).toISOString(),
+        duration: Number(fd.get("duration")),
+        status: fd.get("status"),
+        author: repoOwner
+      });
+    }
     saveData(exceptions);
     overlay.classList.remove("active");
   };

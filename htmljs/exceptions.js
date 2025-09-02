@@ -58,5 +58,10 @@ const exceptions = [
     duration: 120,
     status: "Done",
     author: "GHerreraE"
+  },
+  {
+    patch: true,
+    sha: "7e254232e34a572e8409e363fb51ad35167c1b97",
+    date: "2025-03-06T10:00"
   }
 ];
