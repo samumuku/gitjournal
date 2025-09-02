@@ -233,15 +233,15 @@
     </div>
     <div class="overlay" id="overlay">
       <div class="modal">
-        <h2>Saisie de données</h2>
+        <h2>Saisie manuelle</h2>
         <form id="dataForm">
           <label
             >Nom
-            <input type="text" name="name" value="Travail de fond sur les données fournies" />
+            <input type="text" name="name" />
           </label>
           <label
             >Description
-            <textarea name="description">It was bad</textarea>
+            <textarea name="description"></textarea>
           </label>
           <label
             >Date
@@ -249,7 +249,7 @@
           </label>
           <label
             >Durée (minutes)
-            <input type="number" name="duration" value="20" />
+            <input type="number" name="duration" />
           </label>
           <label
             >Statut
@@ -260,7 +260,7 @@
           </label>
           <div class="actions">
             <button type="button" id="closeBtn">Annuler</button>
-            <button type="submit">Enregistrer</button>
+            <button type="button" id="saveBtn">Enregistrer</button>
           </div>
         </form>
       </div>
@@ -578,7 +578,7 @@
 </script>
 <script>
   function saveData(data) {
-    const jsonStr = JSON.stringify(data, null, 2); // null, 2 = joli format
+    const jsonStr = "const exceptions = " + JSON.stringify(data, null, 2); // null, 2 = joli format
 
     // Création d’un blob JSON
     const blob = new Blob([jsonStr], { type: "application/json" });
@@ -587,7 +587,7 @@
     // Création du lien de téléchargement
     const a = document.createElement("a");
     a.href = url;
-    a.download = "data.json";
+    a.download = "exceptions.js";
     a.click();
 
     // Nettoyage
@@ -615,17 +615,18 @@
     if (e.target === overlay) overlay.classList.remove("active");
   };
 
-  document.getElementById("dataForm").onsubmit = (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const obj = {
+  saveBtn.onclick = () => {
+    const fd = new FormData(dataForm);
+    exceptions.push({
+      patch: true,
       name: fd.get("name"),
       description: fd.get("description"),
       date: new Date(fd.get("date")).toISOString(),
       duration: Number(fd.get("duration")),
-      status: fd.get("status")
-    };
-    console.log(obj);
+      status: fd.get("status"),
+      author: repoOwner
+    });
+    saveData(exceptions);
     overlay.classList.remove("active");
   };
 </script>
