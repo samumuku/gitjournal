@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title id="page-title">Journal de travail par GitHub</title>
     <link rel="icon" type="image/png" href="icon.png" />
+    <script src="exceptions.js"></script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -206,67 +207,45 @@
     try {
       const branch = dpdBranches.value || "main";
       const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}`;
-      apiUrl;
       // Mise à jour des titres
       document.getElementById("page-title").innerText = `Journal de ${filteringUsers.join(", ")} pour ${repo}`;
       document.getElementById("project-title").innerText = `Journal de ${filteringUsers.join(", ")} pour ${repo}`;
 
       // Récupérer les commits depuis l'API GitHub
 
-      let page = 1;
-      let allCommits = [];
-      let hasMore = true;
-
-      while (hasMore) {
-        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}&per_page=100&page=${page}`;
-
-        const response = await fetch(apiUrl, {
-          headers: { Authorization: `Bearer ${authToken}` }
-        });
-
-        if (!response.ok) {
-          console.error("Erreur lors de la récupération des commits:", response.status);
-          return;
-        }
-
-        const commits = await response.json();
-        allCommits = allCommits.concat(commits);
-
-        if (commits.length < 100) {
-          hasMore = false; // S'il y a moins de 100 commits, c'est la dernière page
-        } else {
-          if (commits[99].commit.author.date < journalStartDate) {
-            hasMore = false; // Si la date du commit est antérieure à journalStartDate, on arrête
-          }
-          page++;
-        }
-      }
+      let allCommits = await getAllCommits(owner, repo, branch, defaultAuthToken);
 
       if (allCommits.length === 0) {
         logsDiv.innerHTML = "<p>Aucun commit trouvé pour la branche spécifiée.</p>";
         return;
       }
 
+      // Add exceptions without commit
+      const nocommitref = exceptions.filter((c) => typeof c.commit.sha == "undefined");
+      allCommits = nocommitref.concat(allCommits);
       document.getElementById("inputZone").classList.add("d-none");
       const errors = []; // Commits that don't comply
       // Regrouper les commits par date
       const commitsByDate = {};
       let fiCommits = false;
-      allCommits.forEach((commit) => {
-        const groomed = groom(commit);
-        if (!filteringUsers.includes(commit.commit.author.name)) return; // Ignore les commits qui ne sont pas de l'utilisateur spécifié
+      allCommits
+        .concat(nocommitref)
+        .sort((c) => c.commit.author.date)
+        .forEach((commit) => {
+          const groomed = groom(commit);
+          if (!filteringUsers.includes(commit.commit.author.name)) return; // Ignore les commits qui ne sont pas de l'un des utilisateurs spécifiés
 
-        if (typeof journalStartDate != "undefined" && commit.commit.author.date < journalStartDate) {
-          return; // Ignore les commits qui ne sont pas dans la période spécifiée
-        }
-        if (typeof commit.date != "undefined") {
-          if (!commitsByDate[commit.date]) {
-            commitsByDate[commit.date] = [];
+          if (typeof journalStartDate != "undefined" && commit.commit.author.date < journalStartDate) {
+            return; // Ignore les commits qui ne sont pas dans la période spécifiée
           }
-          commitsByDate[commit.date].push(commit);
-          fiCommits = true;
-        }
-      });
+          if (typeof commit.date != "undefined") {
+            if (!commitsByDate[commit.date]) {
+              commitsByDate[commit.date] = [];
+            }
+            commitsByDate[commit.date].push(commit);
+            fiCommits = true;
+          }
+        });
       if (!fiCommits) {
         logsDiv.innerHTML = '<p style="color: red;">Aucun commit significatif a été trouvé</p>';
         if (typeof username != "undefined")
@@ -363,19 +342,46 @@
     }
   }
 
+  async function getAllCommits(owner, repo, branch, authToken) {
+    let page = 1;
+    let hasMore = true;
+    let res = [];
+
+    while (hasMore) {
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}&per_page=100&page=${page}`;
+
+      const response = await fetch(apiUrl, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+
+      if (!response.ok) {
+        console.error("Erreur lors de la récupération des commits:", response.status);
+        return;
+      }
+
+      const commits = await response.json();
+      res = res.concat(commits);
+      if (commits.length < 100) {
+        hasMore = false; // S'il y a moins de 100 commits, c'est la dernière page
+      } else {
+        if (commits[99].commit.author.date < journalStartDate) {
+          hasMore = false; // Si la date du commit est antérieure à journalStartDate, on arrête
+        }
+        page++;
+      }
+    }
+    res = res.map((c) => groom(c));
+    saveData(res);
+    return res;
+  }
   /// Extracts information from the commit description and make them available as fields of the commit object
   function groom(commit) {
+    let duration = 0;
+    let status = "";
     const messageBreakdown = commit.commit.message.split("\n").filter((line) => line.trim() !== "");
-    commit.name = messageBreakdown[0];
-    commit.description = messageBreakdown.slice(2).join("<br>"); // Le reste comme description
     if (messageBreakdown.length > 1) {
       // can be a valid journal entry
       // Extraction des champs de métadonnées
-      commit.date = new Date(commit.commit.author.date).toLocaleDateString("fr-FR", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      });
       const regex = /\[(.*?)\]/g;
       const meta = Array.from(messageBreakdown[1].matchAll(regex), (match) => match[1]);
       // Handle duration
@@ -386,27 +392,26 @@
         meta.forEach((m) => {
           let numericparts = m.match(/\d+/g);
           if (numericparts == null) {
-            commit.status = m;
+            status = m;
           } else if (numericparts.length < 3) {
-            duration = 0;
             numericparts.forEach((p) => (duration = duration * 60 + parseInt(p)));
-            commit.duration = duration;
-          } else if (numericparts.length == 3) {
-            if (parseInt(numericparts[2]) > 2000) numericparts.reverse();
-            commit.date = new Date(numericparts[0], parseInt(numericparts[1]) - 1, numericparts[2]).toLocaleDateString(
-              "fr-FR",
-              {
-                year: "numeric",
-                month: "long",
-                day: "numeric"
-              }
-            );
-            commit.description += `<br>(Date corrigée)`;
           }
         });
       }
     }
-    return commit;
+    return {
+      sha: commit.sha,
+      name: messageBreakdown[0],
+      description: messageBreakdown.slice(2).join("<br>"), // Le reste comme description
+      date: new Date(commit.commit.author.date).toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      }),
+      duration: duration,
+      status: status,
+      author: commit.author.login
+    };
   }
 
   /// Decide if the metadata is enough to generate a log entry
@@ -480,5 +485,23 @@
   /// Hide/show help
   function toggleHelp() {
     divHelp.classList.toggle("d-none");
+  }
+</script>
+<script>
+  function saveData(data) {
+    const jsonStr = JSON.stringify(data, null, 2); // null, 2 = joli format
+
+    // Création d’un blob JSON
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    // Création du lien de téléchargement
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "data.json";
+    a.click();
+
+    // Nettoyage
+    URL.revokeObjectURL(url);
   }
 </script>
