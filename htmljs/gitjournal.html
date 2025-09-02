@@ -58,7 +58,7 @@
         display: none;
       }
 
-      #divHelpButton {
+      .topButton {
         border: 1px solid black;
         border-radius: 50%;
         height: 20px;
@@ -68,6 +68,7 @@
         background-color: lightgray;
         float: right;
         cursor: pointer;
+        margin-left: 10px;
       }
 
       @media print {
@@ -77,10 +78,71 @@
         }
       }
     </style>
+    <!-- Pour le formulaire de saisie -->
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        padding: 2rem;
+      }
+      button {
+        padding: 0.6rem 1rem;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      /* Overlay caché par défaut */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        background: rgba(0, 0, 0, 0.7);
+        justify-content: center;
+        align-items: center;
+      }
+      .overlay.active {
+        display: flex;
+      }
+      /* Effet spotlight */
+      .overlay::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle 200px at center, transparent 0, transparent 200px, rgba(0, 0, 0, 0.7) 210px);
+      }
+      .modal {
+        position: relative;
+        background: white;
+        color: black;
+        padding: 1rem;
+        border-radius: 8px;
+        max-width: 400px;
+        width: 100%;
+        z-index: 1; /* au-dessus de l'overlay */
+      }
+      .modal h2 {
+        margin-top: 0;
+      }
+      label {
+        display: block;
+        margin: 0.5rem;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+        padding: 0.4rem;
+        margin-top: 0.2rem;
+      }
+      .actions {
+        margin-top: 1rem;
+        text-align: right;
+      }
+    </style>
   </head>
 
   <body>
-    <div id="divHelpButton" class="no-print" onclick="toggleHelp()">?</div>
+    <div id="divHelpButton" class="topButton no-print" onclick="toggleHelp()">?</div>
+    <div id="divAddButton" class="topButton no-print" onclick="toggleHelp()">+</div>
     <h1 id="project-title">Journal de travail extrait de commits GitHub</h1>
     <div id="inputZone">
       <div id="defaultMode" class="d-none">
@@ -168,6 +230,40 @@
       </ul>
       <h4>Génération du PAT</h4>
       <img width="800px" src="./generatePAT.png" />
+    </div>
+    <div class="overlay" id="overlay">
+      <div class="modal">
+        <h2>Saisie de données</h2>
+        <form id="dataForm">
+          <label
+            >Nom
+            <input type="text" name="name" value="Travail de fond sur les données fournies" />
+          </label>
+          <label
+            >Description
+            <textarea name="description">It was bad</textarea>
+          </label>
+          <label
+            >Date
+            <input type="datetime-local" name="date" />
+          </label>
+          <label
+            >Durée (minutes)
+            <input type="number" name="duration" value="20" />
+          </label>
+          <label
+            >Statut
+            <select name="status">
+              <option selected>Done</option>
+              <option>WIP</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button type="button" id="closeBtn">Annuler</button>
+            <button type="submit">Enregistrer</button>
+          </div>
+        </form>
+      </div>
     </div>
   </body>
 </html>
@@ -497,4 +593,39 @@
     // Nettoyage
     URL.revokeObjectURL(url);
   }
+</script>
+<script>
+  // Input form
+  const openBtn = document.getElementById("divAddButton");
+  const closeBtn = document.getElementById("closeBtn");
+  const overlay = document.getElementById("overlay");
+  const dateInput = document.querySelector('input[name="date"]');
+
+  // Préremplir la date
+  const iso = "2025-09-01T13:43:53Z";
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  dateInput.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
+    d.getMinutes()
+  )}`;
+
+  openBtn.onclick = () => overlay.classList.add("active");
+  closeBtn.onclick = () => overlay.classList.remove("active");
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.classList.remove("active");
+  };
+
+  document.getElementById("dataForm").onsubmit = (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const obj = {
+      name: fd.get("name"),
+      description: fd.get("description"),
+      date: new Date(fd.get("date")).toISOString(),
+      duration: Number(fd.get("duration")),
+      status: fd.get("status")
+    };
+    console.log(obj);
+    overlay.classList.remove("active");
+  };
 </script>
