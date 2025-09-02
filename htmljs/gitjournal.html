@@ -397,6 +397,15 @@
         let totalDurationInMinutes = 0;
         const table = document.createElement("table");
         table.innerHTML = headerRow;
+        table.addEventListener("click", (e) => {
+          const tr = e.target.closest("tr.linked");
+          if (!tr) return; // clique sur une ligne non cliquable
+          const sha = tr.dataset.sha;
+          if (!sha) return;
+
+          window.open(`${repoUrl}/commit/${sha}`, "_blank");
+          console.log("click");
+        });
         commitsByDate[date].forEach((commit) => {
           showIt = true;
           totalDurationInMinutes += commit.duration;
