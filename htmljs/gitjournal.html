@@ -40,6 +40,14 @@
         margin: 13px;
       }
 
+      .patched {
+        background-color: cornsilk;
+      }
+
+      .linked {
+        cursor: pointer;
+      }
+
       .date-header {
         font-weight: bold;
         font-size: 1.2em;
@@ -204,6 +212,8 @@
     }
     const [_, owner, repo] = repoMatch;
 
+    document.getElementById("inputZone").classList.add("d-none");
+
     try {
       const branch = dpdBranches.value || "main";
       const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${branch}`;
@@ -213,39 +223,37 @@
 
       // Récupérer les commits depuis l'API GitHub
 
-      let allCommits = await getAllCommits(owner, repo, branch, defaultAuthToken);
+      const allCommits = (await getAllCommits(owner, repo, branch, defaultAuthToken)).slice(0, 10);
 
       if (allCommits.length === 0) {
         logsDiv.innerHTML = "<p>Aucun commit trouvé pour la branche spécifiée.</p>";
         return;
       }
 
-      // Add exceptions without commit
-      const nocommitref = exceptions.filter((c) => typeof c.commit.sha == "undefined");
-      allCommits = nocommitref.concat(allCommits);
-      document.getElementById("inputZone").classList.add("d-none");
+      // Add exceptions without commit (i.e: completely manual entries of the journal)
+      const nocommitref = exceptions.filter((c) => typeof c.sha == "undefined");
+      const allCommitsSorted = nocommitref.concat(allCommits).sort((a, b) => new Date(a.date) - new Date(b.date));
+      const myCommits = allCommitsSorted.filter((c) => filteringUsers.includes(c.author));
       const errors = []; // Commits that don't comply
       // Regrouper les commits par date
       const commitsByDate = {};
       let fiCommits = false;
-      allCommits
-        .concat(nocommitref)
-        .sort((c) => c.commit.author.date)
-        .forEach((commit) => {
-          const groomed = groom(commit);
-          if (!filteringUsers.includes(commit.commit.author.name)) return; // Ignore les commits qui ne sont pas de l'un des utilisateurs spécifiés
-
-          if (typeof journalStartDate != "undefined" && commit.commit.author.date < journalStartDate) {
-            return; // Ignore les commits qui ne sont pas dans la période spécifiée
-          }
-          if (typeof commit.date != "undefined") {
-            if (!commitsByDate[commit.date]) {
-              commitsByDate[commit.date] = [];
-            }
-            commitsByDate[commit.date].push(commit);
-            fiCommits = true;
-          }
+      myCommits.forEach((commit) => {
+        if (typeof journalStartDate != "undefined" && commit.date < journalStartDate) {
+          return; // Ignore les commits qui ne sont pas dans la période spécifiée
+        }
+        let datekey = new Date(commit.date).toLocaleDateString("fr-FR", {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
         });
+        if (!commitsByDate[datekey]) {
+          commitsByDate[datekey] = [];
+        }
+        commitsByDate[datekey].push(commit);
+        fiCommits = true;
+      });
+
       if (!fiCommits) {
         logsDiv.innerHTML = '<p style="color: red;">Aucun commit significatif a été trouvé</p>';
         if (typeof username != "undefined")
@@ -280,36 +288,35 @@
         const table = document.createElement("table");
         table.innerHTML = headerRow;
         commitsByDate[date].forEach((commit) => {
-          if (commitIsOKForJournal(commit)) {
-            showIt = true;
-            totalDurationInMinutes += commit.duration;
+          showIt = true;
+          totalDurationInMinutes += commit.duration;
 
-            // Add row to table
-            const row =
-              filteringUsers.length > 1
-                ? `
-                  <tr onclick="window.open('${
-                    commit.html_url
-                  }', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
-                    <td>${commit.name}</td>
-                    <td>${commit.description}</td> <!-- Si pas de description, la cellule reste vide -->
-                    <td>${toHours(commit.duration)}</td>
-                    <td>${commit.status}</td>
-                    <td>${commit.commit.author.name}</td>
-                  </tr>`
-                : `
-                  <tr onclick="window.open('${
-                    commit.html_url
-                  }', '_blank')" style="cursor: pointer;" title="Cliquer pour voir le commit">
-                    <td>${commit.name}</td>
-                    <td>${commit.description}</td> <!-- Si pas de description, la cellule reste vide -->
-                    <td>${toHours(commit.duration)}</td>
-                    <td>${commit.status}</td>
-                  </tr>`;
-            table.innerHTML += row;
+          // Add row to table
+          const newRow = document.createElement("tr");
+          if (typeof commit.sha == "undefined") {
+            newRow.classList.add("patched");
           } else {
-            errors.push(`<a href=${commit.html_url} target="blank">${commit.name}</a>`);
+            newRow.classList.add("linked");
+            newRow.addEventListener("click", () => {
+              window.open(repoUrl + "/commit/" + commit.sha, "_blank");
+            });
           }
+          newRow.innerHTML =
+            filteringUsers.length > 1
+              ? `
+                    <td>${commit.name}</td>
+                    <td>${commit.description}</td> <!-- Si pas de description, la cellule reste vide -->
+                    <td>${toHours(commit.duration)}</td>
+                    <td>${commit.status}</td>
+                    <td>${commit.author}</td>
+                `
+              : `
+                    <td>${commit.name}</td>
+                    <td>${commit.description}</td> <!-- Si pas de description, la cellule reste vide -->
+                    <td>${toHours(commit.duration)}</td>
+                    <td>${commit.status}</td>
+                `;
+          table.appendChild(newRow);
         });
 
         if (showIt) {
@@ -370,9 +377,7 @@
         page++;
       }
     }
-    res = res.map((c) => groom(c));
-    saveData(res);
-    return res;
+    return res.map((c) => groom(c));
   }
   /// Extracts information from the commit description and make them available as fields of the commit object
   function groom(commit) {
@@ -403,23 +408,11 @@
       sha: commit.sha,
       name: messageBreakdown[0],
       description: messageBreakdown.slice(2).join("<br>"), // Le reste comme description
-      date: new Date(commit.commit.author.date).toLocaleDateString("fr-FR", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      }),
+      date: commit.commit.author.date,
       duration: duration,
       status: status,
       author: commit.author.login
     };
-  }
-
-  /// Decide if the metadata is enough to generate a log entry
-  function commitIsOKForJournal(commit) {
-    if (typeof commit.date == "undefined") return false;
-    if (commit.date == "undefined") return false;
-    if (typeof commit.status == "undefined") return false;
-    return true;
   }
 
   /// Prepare the repos selection dropdown
