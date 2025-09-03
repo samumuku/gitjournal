@@ -337,7 +337,7 @@
           if (typeof patch.name != "undefined") commit.name = patch.name;
           if (typeof patch.description != "undefined") commit.description = patch.description;
           if (typeof patch.date != "undefined") commit.date = patch.date;
-          if (typeof patch.duration != "undefined") commit.duration = patch.duration;
+          if (typeof patch.duration != "undefined") commit.duration = parseInt(patch.duration);
           if (typeof patch.status != "undefined") commit.status = patch.status;
         }
       });
