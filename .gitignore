@@ -22,3 +22,5 @@ Cargo.lock
 .vs/
 .config.js
 test/tmp/
+
+node_modules/
