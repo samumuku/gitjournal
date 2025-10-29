@@ -194,7 +194,7 @@ app.get(["/", "/jdt"], async (req, res) => {
     const branch = process.env.BRANCH || "main";
 
     // ...
-    const raw = await fetchAllCommits({ owner, repo, branch, since });
+    const raw = await fetchAllCommits({ owner, repo, branch, date });
     let entries = raw.map(groom).filter((c) => c.duration > 0);
 
     // lire les exceptions depuis le JSON
@@ -219,6 +219,30 @@ app.get(["/", "/jdt"], async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).send(e.message);
+  }
+});
+
+// POST créer une exception
+app.post("/add", async (req, res) => {
+  try {
+    const err = validateException(req.body);
+    if (err) return res.status(400).json({ error: err });
+
+    const list = await readExceptions();
+    const item = {
+      id: crypto.randomUUID(),
+      name: req.body.name,
+      description: req.body.description || "",
+      date: new Date(req.body.date).toISOString(),
+      duration: Number(req.body.duration) || 0,
+      status: req.body.status || "",
+      author: req.body.author || "?"
+    };
+    list.push(item);
+    await writeExceptions(list);
+    return res.redirect("/jdt");
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

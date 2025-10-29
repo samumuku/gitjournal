@@ -1,7 +1,7 @@
 <div class="overlay" id="overlay">
   <div class="modal">
     <h2 id="heaInputForm">Saisie manuelle</h2>
-    <form id="dataForm">
+    <form id="dataForm" method="post" action="/add">
       <label
         >Nom
         <input type="text" name="name" id="txtName" />
@@ -27,7 +27,7 @@
       </label>
       <div class="actions">
         <button type="button" id="closeBtn">Annuler</button>
-        <button type="button" id="saveBtn">Enregistrer</button>
+        <button type="submit" id="saveBtn">Enregistrer</button>
       </div>
       <input type="hidden" id="hidSHA" name="sha" />
     </form>
