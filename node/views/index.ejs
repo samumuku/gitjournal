@@ -22,8 +22,18 @@
         <th class="muted">SHA</th>
       </tr>
     </thead>
+
     <tbody>
-      <% entries.forEach(c => { %> <%- include('_commitRow', { c }) %> <% }) %>
+      <% groups.forEach(g => { %>
+      <!-- lignes du jour -->
+      <% g.commits.forEach(c => { %> <%- include('_commitRow', { c }) %> <% }) %>
+      <!-- sous-total du jour -->
+      <tr style="background: #fafafa; font-weight: bold">
+        <td colspan="3" style="text-align: right"><%= g.label %></td>
+        <td><%= g.total.h %>h <%= g.total.m %>m</td>
+        <td colspan="3"></td>
+      </tr>
+      <% }) %>
     </tbody>
   </table>
   <% } else { %>

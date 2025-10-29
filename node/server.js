@@ -100,6 +100,44 @@ function totalDuration(commits) {
   return { minutes: mins, h, m };
 }
 
+// helpers de format
+const fmtDayLabel = (d) =>
+  new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(d));
+
+const toDayKey = (isoLike) => new Date(isoLike).toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+const sumMinutes = (items) => items.reduce((acc, c) => acc + (c.duration || 0), 0);
+
+// entries: [{ date: ISO, duration: minutes, ... }]
+function groupByDay(entries) {
+  // assure l'ordre chronologique croissant (ou inverse si tu préfères)
+  const sorted = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const groupsMap = new Map(); // préserve l'ordre d'insertion
+  for (const c of sorted) {
+    const key = toDayKey(c.date);
+    if (!groupsMap.has(key)) groupsMap.set(key, []);
+    groupsMap.get(key).push(c);
+  }
+
+  // transforme en array de groupes avec label + totals
+  const groups = [];
+  for (const [day, commits] of groupsMap.entries()) {
+    const minutes = sumMinutes(commits);
+    groups.push({
+      day, // "2025-01-10"
+      label: fmtDayLabel(day), // "10 janv. 2025"
+      commits,
+      total: {
+        minutes,
+        h: Math.floor(minutes / 60),
+        m: minutes % 60
+      }
+    });
+  }
+  return groups;
+}
+
 // Page d'accueil + génération serveur
 app.get(["/", "/jdt"], async (req, res) => {
   try {
@@ -124,6 +162,7 @@ app.get(["/", "/jdt"], async (req, res) => {
       const branch = branches.includes(selectedBranch) ? selectedBranch : branches[0] || "main";
       const raw = await fetchAllCommits({ owner, repo, branch, since });
       entries = raw.map(groom).filter((c) => c.duration > 0);
+      const groups = groupByDay(entries);
       totals = totalDuration(entries);
       return res.render("index", {
         defaultRepoUrl,
@@ -132,21 +171,10 @@ app.get(["/", "/jdt"], async (req, res) => {
         branches,
         selectedBranch: branch,
         since,
-        entries,
+        groups,
         totals
       });
     }
-
-    return res.render("index", {
-      defaultRepoUrl,
-      owner: null,
-      repo: null,
-      branches: [],
-      selectedBranch,
-      since,
-      entries: [],
-      totals
-    });
   } catch (e) {
     console.error(e);
     res.status(500).send(e.message);
