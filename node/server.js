@@ -5,6 +5,7 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 import expressLayouts from "express-ejs-layouts";
 import exceptions from "./exceptions.js";
+import open from "open";
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -184,5 +185,7 @@ app.get(["/", "/jdt"], async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Journal de travail (SSR) sur http://localhost:${PORT}`);
+  const url = `http://localhost:${PORT}/jdt`;
+  console.log(`Journal de travail dispo sur ${url}`);
+  open(url); // 👈 ouvre automatiquement ton navigateur par défaut
 });
