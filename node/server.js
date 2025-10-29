@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+import expressLayouts from "express-ejs-layouts";
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,8 @@ const GH = "https://api.github.com";
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+app.use(expressLayouts);
+app.set("layout", "layout"); // => views/layout.ejs
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public"))); // optionnel pour CSS/images
 
@@ -100,10 +103,10 @@ function totalDuration(commits) {
 // Page d'accueil + génération serveur
 app.get(["/", "/jdt"], async (req, res) => {
   try {
-    const defaultRepoUrl = req.query.repo || process.env.DEFAULT_REPO_URL || "";
+    const defaultRepoUrl = req.query.repo || process.env.REPO_URL || "";
     const { owner, repo } = parseRepoUrl(defaultRepoUrl);
     const since = req.query.since || process.env.JOURNAL_START_DATE || "";
-    const selectedBranch = req.query.branch || process.env.DEFAULT_BRANCH || "main";
+    const selectedBranch = req.query.branch || process.env.BRANCH || "main";
 
     let branches = [];
     let entries = [];
@@ -112,7 +115,7 @@ app.get(["/", "/jdt"], async (req, res) => {
       branches = await fetchBranches(owner, repo);
       const branch = branches.includes(selectedBranch) ? selectedBranch : branches[0] || "main";
       const raw = await fetchAllCommits({ owner, repo, branch, since });
-      entries = raw.map(groom);
+      entries = raw.map(groom).filter((c) => c.duration > 0);
       totals = totalDuration(entries);
       return res.render("index", {
         defaultRepoUrl,

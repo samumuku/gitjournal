@@ -1,52 +1,32 @@
 <main>
-  <form method="GET" action="/jdt">
-    <label>Repo URL
-      <input type="url" name="repo" value="<%= defaultRepoUrl || '' %>" placeholder="https://github.com/owner/repo" style="min-width:24rem" />
-    </label>
-
-    <label>Branche
-      <select name="branch">
-        <% if (branches && branches.length) { %>
-          <% branches.forEach(b => { %>
-            <option value="<%= b %>" <%= b === selectedBranch ? 'selected' : '' %>><%= b %></option>
-          <% }) %>
-        <% } else { %>
-          <option value="<%= selectedBranch %>"><%= selectedBranch %></option>
-        <% } %>
-      </select>
-    </label>
-
-    <label>Depuis (ISO)
-      <input type="text" name="since" value="<%= since || '' %>" placeholder="2024-01-01T00:00:00.000Z" />
-    </label>
-
-    <button type="submit">Générer</button>
-  </form>
-
   <% if (owner && repo) { %>
-    <p class="muted">Repo: <strong><%= owner %>/<%= repo %></strong> • Branche: <strong><%= selectedBranch %></strong> • Depuis: <strong><%= since || '—' %></strong></p>
+  <header>
+    <h1>Journal de travail <%= owner %>/<%= repo %></h1>
+  </header>
+  <p class="muted">
+    Branche: <strong><%= selectedBranch %></strong> • Depuis:
+    <strong><%= since || '—' %></strong>
+  </p>
 
-    <p><strong>Total:</strong> <%= totals.h %>h <%= totals.m %>m (<%= totals.minutes %> min)</p>
+  <p><strong>Total:</strong> <%= totals.h %>h <%= totals.m %>m (<%= totals.minutes %> min)</p>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Titre</th>
-          <th>Description</th>
-          <th class="muted">Durée</th>
-          <th class="muted">Statut</th>
-          <th class="muted">Auteur</th>
-          <th class="muted">SHA</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% entries.forEach(c => { %>
-          <%- include('_commitRow', { c }) %>
-        <% }) %>
-      </tbody>
-    </table>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Titre</th>
+        <th>Description</th>
+        <th class="muted">Durée</th>
+        <th class="muted">Statut</th>
+        <th class="muted">Auteur</th>
+        <th class="muted">SHA</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% entries.forEach(c => { %> <%- include('_commitRow', { c }) %> <% }) %>
+    </tbody>
+  </table>
   <% } else { %>
-    <p>Renseignez une URL GitHub pour commencer.</p>
+  <p>Renseignez une URL GitHub pour commencer.</p>
   <% } %>
 </main>
