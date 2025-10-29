@@ -1,4 +1,4 @@
-<tr>
+<tr <%= c.sha ? '' : 'style=background-color:aliceblue;' %>>
   <td><%= new Date(c.date).toLocaleString('fr-CH') %></td>
   <td><%= c.name %></td>
   <td style="white-space: pre-wrap"><%= c.description || '' %></td>
@@ -6,6 +6,8 @@
   <td class="muted"><span class="badge"><%= c.status || '' %></span></td>
   <td class="muted"><%= c.author %></td>
   <td class="muted" style="font-family: monospace">
-    <a href="<%= c.url %>" target="_blank" rel="noopener noreferrer"><%= c.sha.substring(0,7) %></a>
+    <% if (c.sha) { %>
+    <a href="<%= c.url %>" target="_blank" rel="noopener noreferrer"><%= c.sha ? c.sha.substring(0,7) : "Edition" %></a>
+    <% } else { %> - <% } %>
   </td>
 </tr>

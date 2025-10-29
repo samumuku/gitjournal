@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import expressLayouts from "express-ejs-layouts";
+import exceptions from "./exceptions.js";
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -162,7 +163,8 @@ app.get(["/", "/jdt"], async (req, res) => {
       const branch = branches.includes(selectedBranch) ? selectedBranch : branches[0] || "main";
       const raw = await fetchAllCommits({ owner, repo, branch, since });
       entries = raw.map(groom).filter((c) => c.duration > 0);
-      const groups = groupByDay(entries);
+      const patched = entries.concat(exceptions);
+      const groups = groupByDay(patched);
       totals = totalDuration(entries);
       return res.render("index", {
         defaultRepoUrl,
