@@ -103,10 +103,18 @@ function totalDuration(commits) {
 // Page d'accueil + génération serveur
 app.get(["/", "/jdt"], async (req, res) => {
   try {
-    const defaultRepoUrl = req.query.repo || process.env.REPO_URL || "";
+    const defaultRepoUrl = process.env.REPO_URL || "";
     const { owner, repo } = parseRepoUrl(defaultRepoUrl);
-    const since = req.query.since || process.env.JOURNAL_START_DATE || "";
-    const selectedBranch = req.query.branch || process.env.BRANCH || "main";
+
+    const date = new Date(process.env.JOURNAL_START_DATE);
+
+    const since = new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }).format(date);
+
+    const selectedBranch = process.env.BRANCH || "main";
 
     let branches = [];
     let entries = [];
