@@ -4,8 +4,9 @@ import { fileURLToPath } from "url";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import expressLayouts from "express-ejs-layouts";
-import exceptions from "./exceptions.js";
 import open from "open";
+import fs from "fs/promises";
+import crypto from "crypto";
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -21,6 +22,7 @@ app.use(expressLayouts);
 app.set("layout", "layout"); // => views/layout.ejs
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public"))); // optionnel pour CSS/images
+app.use(express.json());
 
 function ghHeaders() {
   const h = { Accept: "application/vnd.github+json" };
@@ -140,6 +142,41 @@ function groupByDay(entries) {
   return groups;
 }
 
+// === Exceptions.json (lecture/écriture) ===
+const DATA_DIR = path.join(__dirname, "data");
+const EXCEPTIONS_PATH = path.join(DATA_DIR, "exceptions.json");
+
+async function ensureDataFile() {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  try {
+    await fs.access(EXCEPTIONS_PATH);
+  } catch {
+    await fs.writeFile(EXCEPTIONS_PATH, "[]", "utf-8");
+  }
+}
+
+async function readExceptions() {
+  await ensureDataFile();
+  const raw = await fs.readFile(EXCEPTIONS_PATH, "utf-8");
+  const arr = JSON.parse(raw);
+  // normalisation très légère
+  return Array.isArray(arr) ? arr : [];
+}
+
+async function writeExceptions(arr) {
+  await ensureDataFile();
+  await fs.writeFile(EXCEPTIONS_PATH, JSON.stringify(arr, null, 2), "utf-8");
+}
+
+function validateException(x) {
+  // minimal: name, date (ISO), duration en minutes
+  if (!x || typeof x !== "object") return "Objet invalide";
+  if (!x.name) return "Champ 'name' requis";
+  if (!x.date || isNaN(new Date(x.date))) return "Champ 'date' invalide (ISO attendu)";
+  if (x.duration == null || isNaN(Number(x.duration))) return "Champ 'duration' requis (minutes)";
+  return null;
+}
+
 // Page d'accueil + génération serveur
 app.get(["/", "/jdt"], async (req, res) => {
   try {
@@ -154,30 +191,31 @@ app.get(["/", "/jdt"], async (req, res) => {
       year: "numeric"
     }).format(date);
 
-    const selectedBranch = process.env.BRANCH || "main";
+    const branch = process.env.BRANCH || "main";
 
-    let branches = [];
-    let entries = [];
-    let totals = { minutes: 0, h: 0, m: 0 };
-    if (owner && repo) {
-      branches = await fetchBranches(owner, repo);
-      const branch = branches.includes(selectedBranch) ? selectedBranch : branches[0] || "main";
-      const raw = await fetchAllCommits({ owner, repo, branch, since });
-      entries = raw.map(groom).filter((c) => c.duration > 0);
-      const patched = entries.concat(exceptions);
-      const groups = groupByDay(patched);
-      totals = totalDuration(entries);
-      return res.render("index", {
-        defaultRepoUrl,
-        owner,
-        repo,
-        branches,
-        selectedBranch: branch,
-        since,
-        groups,
-        totals
-      });
-    }
+    // ...
+    const raw = await fetchAllCommits({ owner, repo, branch, since });
+    let entries = raw.map(groom).filter((c) => c.duration > 0);
+
+    // lire les exceptions depuis le JSON
+    const exc = await readExceptions();
+
+    // fusionner commits + exceptions
+    const patched = entries.concat(exc);
+
+    // grouper + totaux
+    const groups = groupByDay(patched);
+    const totals = totalDuration(entries);
+
+    return res.render("index", {
+      defaultRepoUrl,
+      owner,
+      repo,
+      selectedBranch: branch,
+      since,
+      groups,
+      totals
+    });
   } catch (e) {
     console.error(e);
     res.status(500).send(e.message);
