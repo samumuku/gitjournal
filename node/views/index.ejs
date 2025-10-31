@@ -49,7 +49,17 @@
 
   openBtn.onclick = () => {
     heaInputForm.innerText = "Ajout d'une entrée";
-    txtName.disabled = false;
+    txtName.value = "";
+    txtDescription.value = "";
+    numDuration.value = null;
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    datDate.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
+      d.getMinutes()
+    )}`;
+    overlay.classList.add("active");
+    hidSHA.value = "-";
+
     dpdStatus.disabled = false;
     overlay.classList.add("active");
   };
