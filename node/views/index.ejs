@@ -96,11 +96,11 @@
         d.getMinutes()
       )}`;
       txtName.value = row.childNodes[3].innerText;
-      txtName.disabled = true;
       txtDescription.value = row.childNodes[5].innerText;
       numDuration.value = parseInt(row.dataset.duration);
       dpdStatus.disabled = true;
       overlay.classList.add("active");
+      hidSHA.value = row.dataset.sha;
     });
   });
 </script>
