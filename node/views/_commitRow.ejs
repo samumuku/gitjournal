@@ -1,4 +1,4 @@
-<tr>
+<tr data-sha="<%= c.sha ?? '-'%>" data-duration="<%= c.duration ?? '0'%>" data-date="<%= c.date ?? '0'%>">
   <td><%= new Date(c.date).toLocaleString('fr-CH') %></td>
   <td><%= c.name %></td>
   <td style="white-space: pre-wrap"><%= c.description || '' %></td>
