@@ -98,7 +98,7 @@ function groom(commit) {
 }
 
 function totalDuration(commits) {
-  const mins = commits.reduce((acc, c) => acc + (c.duration || 0), 0);
+  const mins = commits.reduce((acc, c) => acc + (Number(c.duration) || 0), 0);
   const h = Math.floor(mins / 60),
     m = mins % 60;
   return { minutes: mins, h, m };
@@ -200,12 +200,22 @@ app.get(["/", "/jdt"], async (req, res) => {
     // lire les exceptions depuis le JSON
     const exc = await readExceptions();
 
-    // fusionner commits + exceptions
-    const patched = entries.concat(exc);
-
+    // Remplacer les commits par leur exceptions
+    const keyOf = (x) => (x.sha || x.id || "").toLowerCase().trim();
+    const excByKey = new Map(exc.map((x) => [keyOf(x), x]));
+    const patched = entries.map((e) => {
+      const repl = excByKey.get(keyOf(e));
+      if (repl) {
+        repl.patch = true;
+        return repl; // remplace si une exception existe
+      }
+      return e;
+    });
+    // Ajouter les entrées "commitless"
+    const allEntriesReady = patched.concat(exc.filter((e) => e.type == "commitless"));
     // grouper + totaux
-    const groups = groupByDay(patched);
-    const totals = totalDuration(entries);
+    const groups = groupByDay(allEntriesReady);
+    const totals = totalDuration(allEntriesReady);
 
     return res.render("index", {
       defaultRepoUrl,
@@ -228,23 +238,63 @@ app.post("/add", async (req, res) => {
     const err = validateException(req.body);
     if (err) return res.status(400).json({ error: err });
 
-    const list = await readExceptions();
-    const item = {
-      id: crypto.randomUUID(),
-      name: req.body.name,
-      description: req.body.description || "",
-      date: new Date(req.body.date).toISOString(),
-      duration: Number(req.body.duration) || 0,
-      status: req.body.status || "",
-      author: req.body.author || "?"
-    };
-    list.push(item);
-    await writeExceptions(list);
+    if (req.body.exceptionId == "?") {
+      if (req.body.sha == "?") {
+        addNewCommitlessEntry(req.body);
+      } else {
+        addNewCommitPatchEntry(req.body);
+      }
+    } else {
+      await patchExistingException(req.body);
+    }
     return res.redirect("/jdt");
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
+
+async function patchExistingException(ex) {
+  const list = await readExceptions();
+  const existing = list.find((e) => e.id == ex.exceptionId);
+  existing.name = ex.name;
+  existing.description = ex.description;
+  existing.date = ex.date;
+  existing.duration = Number(ex.duration) || 0;
+  await writeExceptions(list);
+}
+
+async function addNewCommitlessEntry(ex) {
+  const list = await readExceptions();
+  const newentry = {
+    id: crypto.randomUUID(),
+    type: "commitless",
+    name: ex.name,
+    description: ex.description || "",
+    date: new Date(ex.date).toISOString(),
+    duration: Number(ex.duration) || 0,
+    status: ex.status || "",
+    author: ex.author || "?"
+  };
+  list.push(newentry);
+  await writeExceptions(list);
+}
+
+async function addNewCommitPatchEntry(ex) {
+  const list = await readExceptions();
+  const newentry = {
+    id: crypto.randomUUID(),
+    type: "commitpatch",
+    sha: ex.sha,
+    name: ex.name,
+    description: ex.description || "",
+    date: new Date(ex.date).toISOString(),
+    duration: Number(ex.duration) || 0,
+    status: ex.status || "",
+    author: ex.author || "?"
+  };
+  list.push(newentry);
+  await writeExceptions(list);
+}
 
 app.listen(PORT, () => {
   const url = `http://localhost:${PORT}/jdt`;

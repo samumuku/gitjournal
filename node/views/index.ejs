@@ -58,7 +58,8 @@
       d.getMinutes()
     )}`;
     overlay.classList.add("active");
-    hidSHA.value = "-";
+    hidSHA.value = "?";
+    exceptionId.value = "?";
 
     dpdStatus.disabled = false;
     overlay.classList.add("active");
@@ -111,6 +112,7 @@
       dpdStatus.disabled = true;
       overlay.classList.add("active");
       hidSHA.value = row.dataset.sha;
+      exceptionId.value = row.dataset.exceptionid;
     });
   });
 </script>
