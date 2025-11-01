@@ -238,8 +238,8 @@ app.post("/add", async (req, res) => {
     const err = validateException(req.body);
     if (err) return res.status(400).json({ error: err });
 
-    if (req.body.exceptionId == "?") {
-      if (req.body.sha == "?") {
+    if (req.body.exceptionId == "-") {
+      if (req.body.sha == "-") {
         addNewCommitlessEntry(req.body);
       } else {
         addNewCommitPatchEntry(req.body);
@@ -285,6 +285,7 @@ async function addNewCommitPatchEntry(ex) {
     id: crypto.randomUUID(),
     type: "commitpatch",
     sha: ex.sha,
+    url: ex.url,
     name: ex.name,
     description: ex.description || "",
     date: new Date(ex.date).toISOString(),

@@ -19,7 +19,6 @@
         <th class="muted">Durée</th>
         <th class="muted">Statut</th>
         <th class="muted">Auteur</th>
-        <th class="muted">SHA</th>
       </tr>
     </thead>
 
@@ -58,8 +57,9 @@
       d.getMinutes()
     )}`;
     overlay.classList.add("active");
-    hidSHA.value = "?";
-    exceptionId.value = "?";
+    hidSHA.value = "-";
+    exceptionId.value = "-";
+    url.value = "-";
 
     dpdStatus.disabled = false;
     overlay.classList.add("active");
@@ -113,6 +113,7 @@
       overlay.classList.add("active");
       hidSHA.value = row.dataset.sha;
       exceptionId.value = row.dataset.exceptionid;
+      url.value = row.dataset.url;
     });
   });
 </script>
