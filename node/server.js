@@ -206,7 +206,6 @@ app.get(["/", "/jdt"], async (req, res) => {
     const patched = entries.map((e) => {
       const repl = excByKey.get(keyOf(e));
       if (repl) {
-        repl.patch = true;
         return repl; // remplace si une exception existe
       }
       return e;
@@ -293,7 +292,8 @@ async function addNewCommitPatchEntry(ex) {
     date: new Date(ex.date).toISOString(),
     duration: Number(ex.duration) || 0,
     status: ex.status || "Done",
-    author: ex.author || "?"
+    author: ex.author || "?",
+    patch: true
   };
   list.push(newentry);
   await writeExceptions(list);
