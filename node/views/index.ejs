@@ -106,14 +106,16 @@
       datDate.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
         d.getMinutes()
       )}`;
+      // Load form fields with entry's current values
       txtName.value = row.childNodes[3].innerText;
       txtDescription.value = row.childNodes[5].innerText;
       numDuration.value = parseInt(row.dataset.duration);
-      dpdStatus.disabled = true;
       overlay.classList.add("active");
       hidSHA.value = row.dataset.sha;
       exceptionId.value = row.dataset.exceptionid;
       url.value = row.dataset.url;
+      dpdStatus.value = row.dataset.status;
+      author.value = row.dataset.author;
     });
   });
 </script>

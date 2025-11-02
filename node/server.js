@@ -260,6 +260,8 @@ async function patchExistingException(ex) {
   existing.description = ex.description;
   existing.date = ex.date;
   existing.duration = Number(ex.duration) || 0;
+  existing.author = ex.author;
+  existing.status = ex.status;
   await writeExceptions(list);
 }
 
@@ -273,7 +275,7 @@ async function addNewCommitlessEntry(ex) {
     date: new Date(ex.date).toISOString(),
     duration: Number(ex.duration) || 0,
     status: ex.status || "",
-    author: ex.author || "?"
+    author: process.env.USER
   };
   list.push(newentry);
   await writeExceptions(list);
@@ -290,7 +292,7 @@ async function addNewCommitPatchEntry(ex) {
     description: ex.description || "",
     date: new Date(ex.date).toISOString(),
     duration: Number(ex.duration) || 0,
-    status: ex.status || "",
+    status: ex.status || "Done",
     author: ex.author || "?"
   };
   list.push(newentry);

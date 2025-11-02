@@ -4,6 +4,8 @@
   data-exceptionid="<%= c.id ?? '-'%>"
   data-duration="<%= c.duration ?? '0'%>"
   data-date="<%= c.date ?? '0'%>"
+  data-author="<%= c.author ?? '?'%>"
+  data-status="<%= c.status ?? '0'%>"
 >
   <td><%= new Date(c.date).toLocaleString('fr-CH') %></td>
   <td><%= c.name %></td>
